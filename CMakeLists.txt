@@ -29,6 +29,12 @@ if(TARGET SDL2::SDL2main)
 endif()
 target_link_libraries(corncob3d PRIVATE SDL2::SDL2)
 
+# Unit tests for the bit-exact ASM ports
+enable_testing()
+add_executable(test_asmmath tests/test_asmmath.cpp)
+target_include_directories(test_asmmath PRIVATE src/)
+add_test(NAME asmmath COMMAND test_asmmath)
+
 if(WIN32)
     # Windowed app (no console) in release; keep the console in debug for logging
     set_target_properties(corncob3d PROPERTIES WIN32_EXECUTABLE $<NOT:$<CONFIG:Debug>>)
