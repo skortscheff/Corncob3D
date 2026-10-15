@@ -11,6 +11,10 @@
 //
 // Since this port draws without painter ordering, each Model holds the union of
 // the parts across all 8 view lists.
+//
+// Superseded: every object (this one included) is now generated from the ASM into
+// build/generated/DGroup.* (tools/asmdata). This hand transcription stays only as a
+// cross-check (tests/test_dgroup.cpp) until the Phase 1 engine draws from DGROUP.
 
 #pragma once
 #include "../render/Renderer.hpp"

@@ -1,5 +1,6 @@
 // Vec3.hpp - 3D vector type for fixed-point coordinate math
-// Ported from F3DEQU.INC (x=0, y=2, z=4 offsets) and f3dvec.asm coord arrays
+// Component order follows F3DEQU.INC (x=0, y=2, z=4); NOT bit-exact arithmetic
+// (see core/AsmMath.hpp for that). Presentation layer only.
 
 #pragma once
 #include "Fixed.hpp"

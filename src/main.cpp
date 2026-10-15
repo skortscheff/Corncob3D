@@ -1,8 +1,9 @@
 // main.cpp - Corncob 3-D (Windows/SDL2 port) entry point and main loop
 // Stands in for the main loop in 3.ASM: poll input, update the plane, draw the frame, flip.
 //
-// Status: flight + world rendering scaffold. The original object models (DEFOBJS.ASM),
-// enemies, weapons, and mission logic are not ported yet; the scene uses placeholder models.
+// Status: preview scaffold. Intro/loading screen, instrument panel and the decoded player
+// plane are real; the flight model, world and buildings are placeholders that Phases 1-3
+// replace with the ported 3.ASM/F3DVEC/MAP code (see README.md).
 
 #include "math/Mat3x3.hpp"
 #include "math/Trig.hpp"

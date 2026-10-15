@@ -1,5 +1,6 @@
 // Mat3x3.hpp - 3x3 rotation matrix
-// Ported from MAT.ASM: calcmat, ncalcmat, matvmul, rolpln
+// Float matrix with the same roles as MAT.ASM (calcmat, matvmul, rolpln) - NOT bit-exact;
+// used by the placeholder flight model and, later, the presentation layer.
 
 #pragma once
 #include "../core/Vec3.hpp"

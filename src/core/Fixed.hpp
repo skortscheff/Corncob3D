@@ -1,5 +1,6 @@
-// Fixed.hpp - 16.16 fixed-point type (port from MASM imath.INC + hmul/madd macros)
-// Original: all math done with 16-bit registers, range ±32767 for angles
+// Fixed.hpp - 16.16 fixed-point convenience type
+// NOT bit-exact with the original: the 16-bit ASM arithmetic is in core/AsmMath.hpp.
+// Kept for the presentation layer (HD mode, tools) only.
 
 #pragma once
 #include <cstdint>

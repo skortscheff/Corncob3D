@@ -1,5 +1,6 @@
 // Trig.hpp - Trigonometric functions with lookup tables
-// Ported from SIN.ASM, ATN.ASM, and f3dvec.asm calcsin/negsin/calcmat
+// Float approximations in the spirit of SIN.ASM/ATN.ASM - NOT bit-exact; presentation
+// layer only. The faithful ports of those routines come with the Phase 1 engine.
 
 #pragma once
 #include <cstdint>

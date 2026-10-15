@@ -1,5 +1,5 @@
 // Sqrt.hpp - Fixed-point square root functions
-// Ported from DSQRT.ASM, CSQRT.ASM, CSQRTS.ASM
+// Same role as DSQRT.ASM/CSQRT.ASM but NOT bit-exact; presentation layer only.
 
 #pragma once
 #include "../core/Fixed.hpp"
