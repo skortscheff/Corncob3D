@@ -35,8 +35,9 @@ add_executable(corncob3d
     src/math/Sqrt.cpp
     src/platform/Window.cpp
     src/platform/Input.cpp
-    src/render/Renderer.cpp
-    src/game/PlayerObjects.cpp
+    src/engine/AsmTables.cpp
+    src/engine/F3dVec.cpp
+    src/render/EgaScreen.cpp
     src/assets/Assets.cpp
     src/render/FrameBuffer.cpp
     src/ui/Intro.cpp
@@ -57,6 +58,11 @@ add_executable(test_dgroup tests/test_dgroup.cpp)
 target_include_directories(test_dgroup PRIVATE src/)
 target_link_libraries(test_dgroup PRIVATE dgroup)
 add_test(NAME dgroup COMMAND test_dgroup)
+add_executable(test_engine tests/test_engine.cpp
+    src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/render/EgaScreen.cpp)
+target_include_directories(test_engine PRIVATE src/)
+target_link_libraries(test_engine PRIVATE SDL2::SDL2 dgroup)
+add_test(NAME engine COMMAND test_engine)
 
 if(WIN32)
     # Windowed app (no console) in release; keep the console in debug for logging

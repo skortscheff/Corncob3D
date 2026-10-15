@@ -1,212 +1,160 @@
 // main.cpp - Corncob 3-D (Windows/SDL2 port) entry point and main loop
-// Stands in for the main loop in 3.ASM: poll input, update the plane, draw the frame, flip.
 //
-// Status: preview scaffold. Intro/loading screen, instrument panel and the decoded player
-// plane are real; the flight model, world and buildings are placeholders that Phases 1-3
-// replace with the ported 3.ASM/F3DVEC/MAP code (see README.md).
+// Status: Phase 1. The intro, loading screen and instrument panel are real, and
+// every frame is drawn by the ported 3D engine (F3DVEC.ASM) in the original's
+// order: epage, horizon (modhr + hrobj), sun, drawnear, flipage. The observer
+// is steered by a placeholder controller that writes orvec/ox directly, and a
+// handful of real DEFOBJS templates stand in for the universe; Phases 2-3
+// replace both with the ported 3.ASM/MAP.ASM code.
 
-#include "math/Mat3x3.hpp"
+#include "assets/Assets.hpp"
+#include "core/AsmMath.hpp"
+#include "engine/AsmTables.hpp"
+#include "engine/F3dVec.hpp"
+#include "game/GameState.hpp"
 #include "math/Trig.hpp"
 #include "platform/Input.hpp"
 #include "platform/Window.hpp"
-#include "render/Renderer.hpp"
-#include "game/PlayerObjects.hpp"
-#include "assets/Assets.hpp"
+#include "render/EgaScreen.hpp"
 #include "ui/Intro.hpp"
-#include <string>
+#include "DGroup.hpp"
 
 #include <SDL.h>
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <string>
 
 using namespace corncob;
+namespace d = corncob::dgroup;
+using engine::i16;
+using engine::u16;
 
 namespace {
 
-Model makeBox(float w, float h, float d, uint8_t color) {
-    Model m;
-    float x = w / 2, z = d / 2;
-    m.verts = {{-x, 0, -z}, {x, 0, -z}, {x, 0, z}, {-x, 0, z},
-               {-x, h, -z}, {x, h, -z}, {x, h, z}, {-x, h, z}};
-    m.edges = {{0,1},{1,2},{2,3},{3,0},{4,5},{5,6},{6,7},{7,4},{0,4},{1,5},{2,6},{3,7}};
-    m.color = color;
-    return m;
-}
+constexpr int NBYTEXP = 74;   // F3DEQU.INC: bytes per 3D object record
 
-Model makePyramid(float w, float h, uint8_t color) {
-    Model m;
-    float x = w / 2;
-    m.verts = {{-x, 0, -x}, {x, 0, -x}, {x, 0, x}, {-x, 0, x}, {0, h, 0}};
-    m.edges = {{0,1},{1,2},{2,3},{3,0},{0,4},{1,4},{2,4},{3,4}};
-    m.color = color;
-    return m;
-}
+// DEFOBJS templatetable indices
+enum Template : int { T_HQ = 0, T_RADAR = 3, T_TW = 4, T_ROAD = 5, T_TOWER = 6, T_VECH = 12, T_HUT = 34 };
 
-// Control tower: tall shaft with a wider cab on top (TOWER in DEFOBJS.ASM, approximated)
-Model makeTower(uint8_t color) {
-    Model m = makeBox(20, 120, 20, color);
-    Model cab = makeBox(50, 25, 50, color);
-    int base = static_cast<int>(m.verts.size());
-    for (auto v : cab.verts) m.verts.push_back({v.x, v.y + 120, v.z});
-    for (auto e : cab.edges) m.edges.push_back({e.first + base, e.second + base});
-    return m;
-}
+// Places a copy of a DEFOBJS template in the exps array and the near table,
+// the way the universe loader will in Phase 2
+class DemoScene {
+public:
+    DemoScene(GameState& gs, engine::F3dVec& eng) : m_g(gs), m_eng(eng) {}
 
-struct Placed { const Model* model; P3 pos; float yaw; };
+    void place(int type, int32_t x, int32_t y, int32_t z, i16 yaw = 0) {
+        const u16 tmpl = m_g.uw(d::defobjs::templatetable + 2 * type);
+        const u16 obj = static_cast<u16>(d::strtexp::exps + m_used++ * NBYTEXP);
+        std::memmove(m_g.raw() + obj, m_g.raw() + tmpl, NBYTEXP);
+        m_g.setDw(obj, x);
+        m_g.setDw(obj + 4, y);
+        if (z != INT32_MIN) m_g.setDw(obj + 8, z);   // else keep the template's height
+        m_g.setW(obj + 12, yaw);
+        m_g.setB(obj + 18, 0);
+        m_g.setW(obj + 72, static_cast<i16>(type));  // type index, as qtimed/checkforrunway expect
+        m_eng.tbadd(static_cast<u16>(d::f3dvec::neartbl), obj);
+    }
 
-struct Plane {
-    P3 pos{0, 6, -400};
-    Mat3x3 orient;     // rows: right, up, forward
-    float speed = 0;   // units/sec
-    float throttle = 0; // 0..1
-    bool crashed = false;
+private:
+    GameState& m_g;
+    engine::F3dVec& m_eng;
+    int m_used = 0;
 };
 
-constexpr float MAX_SPEED = 600.0f;
-constexpr float GROUND_Y = 0.0f;
-constexpr float EYE_HEIGHT = 6.0f;
+// Placeholder for the 3.ASM flight model: drives orvec (yaw, pitch, roll) and
+// moves the eye along the view direction
+struct Observer {
+    int32_t x = 0, y = 0, z = 0;
+    i16 yaw = 0, pitch = 0, roll = 0;
+    int speed = 0;   // world units per second
+};
 
-void updatePlane(Plane& p, const Input& in, float dt) {
-    if (in.isKeyJustDown(SDL_SCANCODE_R)) p = Plane{};
-    if (p.crashed) return;
-
-    // Throttle: A/Z like a keyboard throttle, or number keys 0-9 for preset settings
-    if (in.isKeyDown(SDL_SCANCODE_A)) p.throttle = std::min(1.0f, p.throttle + 0.5f * dt);
-    if (in.isKeyDown(SDL_SCANCODE_Z)) p.throttle = std::max(0.0f, p.throttle - 0.5f * dt);
-    for (int k = 0; k <= 9; k++) {
-        SDL_Scancode sc = k == 0 ? SDL_SCANCODE_0 : static_cast<SDL_Scancode>(SDL_SCANCODE_1 + k - 1);
-        if (in.isKeyJustDown(sc)) p.throttle = k == 0 ? 1.0f : k / 10.0f;
-    }
-
-    float pitch = 0, roll = 0, yaw = 0;
-    if (in.isKeyDown(SDL_SCANCODE_UP)) pitch -= 1;     // stick forward = nose down
-    if (in.isKeyDown(SDL_SCANCODE_DOWN)) pitch += 1;
-    if (in.isKeyDown(SDL_SCANCODE_LEFT)) roll -= 1;
-    if (in.isKeyDown(SDL_SCANCODE_RIGHT)) roll += 1;
-    if (in.isKeyDown(SDL_SCANCODE_COMMA)) yaw -= 1;
-    if (in.isKeyDown(SDL_SCANCODE_PERIOD)) yaw += 1;
+void steer(Observer& o, const Input& in, float dt) {
+    const float rate = 12000.0f * dt;   // binary angle units per second
+    if (in.isKeyDown(SDL_SCANCODE_UP)) o.pitch = static_cast<i16>(o.pitch + rate);
+    if (in.isKeyDown(SDL_SCANCODE_DOWN)) o.pitch = static_cast<i16>(o.pitch - rate);
+    if (in.isKeyDown(SDL_SCANCODE_LEFT)) o.roll = static_cast<i16>(o.roll - rate);
+    if (in.isKeyDown(SDL_SCANCODE_RIGHT)) o.roll = static_cast<i16>(o.roll + rate);
+    if (in.isKeyDown(SDL_SCANCODE_COMMA)) o.yaw = static_cast<i16>(o.yaw + rate);
+    if (in.isKeyDown(SDL_SCANCODE_PERIOD)) o.yaw = static_cast<i16>(o.yaw - rate);
+    if (in.isKeyDown(SDL_SCANCODE_A)) o.speed = std::min(o.speed + static_cast<int>(20000 * dt), 40000);
+    if (in.isKeyDown(SDL_SCANCODE_Z)) o.speed = std::max(o.speed - static_cast<int>(20000 * dt), 0);
     if (in.hasJoystick()) {
-        roll += in.joystickAxis(0);
-        pitch += in.joystickAxis(1);
-    }
-
-    // Speed chases throttle; no lift model yet, so the plane flies where it points
-    float target = p.throttle * MAX_SPEED;
-    p.speed += (target - p.speed) * std::min(1.0f, dt * 0.8f);
-
-    // Control authority scales with airspeed so you can't spin on the runway
-    float authority = std::min(1.0f, p.speed / 120.0f);
-    bool onGround = p.pos.y <= GROUND_Y + EYE_HEIGHT + 0.01f;
-
-    // Banking turns the plane (coordinated turn approximation)
-    const float* r = &p.orient.m[0];
-    float bank = -r[1]; // >0 when banked right
-    float bankYaw = bank * 60.0f * authority;
-
-    p.orient.rotate((yaw * 40.0f * authority + bankYaw) * dt,
-                    pitch * 60.0f * authority * dt,
-                    roll * 90.0f * authority * dt);
-    p.orient.orthonormalize();
-
-    const float* f = &p.orient.m[6];
-    p.pos.x += f[0] * p.speed * dt;
-    p.pos.y += f[1] * p.speed * dt;
-    p.pos.z += f[2] * p.speed * dt;
-
-    // Below takeoff speed the plane can't climb
-    if (p.speed < 100.0f && p.pos.y > GROUND_Y + EYE_HEIGHT && onGround)
-        p.pos.y = GROUND_Y + EYE_HEIGHT;
-
-    if (p.pos.y < GROUND_Y + EYE_HEIGHT) {
-        // Gentle, level contact = landing; anything else = crash (crshflg in 3.ASM)
-        float sink = -f[1] * p.speed;
-        float levelness = p.orient.m[4]; // up.y
-        if (sink > 40.0f || levelness < 0.9f) {
-            p.crashed = true;
-            p.speed = 0;
-        }
-        p.pos.y = GROUND_Y + EYE_HEIGHT;
-        if (!p.crashed && f[1] < 0) {
-            // Settle nose onto the ground
-            p.orient.rotate(0, -std::asin(f[1]) * RAD2DEG, 0);
-            p.orient.orthonormalize();
-        }
+        o.roll = static_cast<i16>(o.roll + in.joystickAxis(0) * rate);
+        o.pitch = static_cast<i16>(o.pitch - in.joystickAxis(1) * rate);
     }
 }
 
-void drawGround(Renderer& r, const P3& cam) {
-    // Grid of ground lines around the camera, snapped so it doesn't swim
-    const float cell = 250.0f;
-    const int n = 16;
-    float ox = std::floor(cam.x / cell) * cell;
-    float oz = std::floor(cam.z / cell) * cell;
-    for (int i = -n; i <= n; i++) {
-        r.line3D({ox + i * cell, 0, oz - n * cell}, {ox + i * cell, 0, oz + n * cell}, GREEN);
-        r.line3D({ox - n * cell, 0, oz + i * cell}, {ox + n * cell, 0, oz + i * cell}, GREEN);
-    }
+void moveObserver(Observer& o, GameState& gs, float dt) {
+    // forward = row 0 of orot: (cos y cos p, sin y cos p, -sin p) in 1.15
+    const u16 orot = static_cast<u16>(d::f3dvec::orot);
+    const float step = o.speed * dt / 32768.0f;
+    o.x += static_cast<int32_t>(gs.w(orot) * step);
+    o.y += static_cast<int32_t>(gs.w(orot + 2) * step);
+    o.z += static_cast<int32_t>(gs.w(orot + 4) * step);
+    o.z = std::max(o.z, 720);   // ehmin, the lowest the eye goes
 }
 
-void drawRunway(Renderer& r) {
-    const float hw = 30, len = 1500;
-    r.line3D({-hw, 0.1f, -500}, {-hw, 0.1f, -500 + len}, LIGHTGRAY);
-    r.line3D({hw, 0.1f, -500}, {hw, 0.1f, -500 + len}, LIGHTGRAY);
-    r.line3D({-hw, 0.1f, -500}, {hw, 0.1f, -500}, LIGHTGRAY);
-    r.line3D({-hw, 0.1f, -500 + len}, {hw, 0.1f, -500 + len}, LIGHTGRAY);
-    for (float z = -480; z < -500 + len; z += 80)
-        r.line3D({0, 0.1f, z}, {0, 0.1f, z + 40}, WHITE);
+// 3.ASM: orvec -> orot/norot (calcsin, calcmat, ncalcmat), ox/oy/oz, viewkludge
+void applyObserver(const Observer& o, GameState& gs, engine::F3dVec& eng) {
+    const u16 orvec = static_cast<u16>(d::m3::orvec);
+    gs.setW(orvec, o.yaw);
+    gs.setW(orvec + 2, o.pitch);
+    gs.setW(orvec + 4, o.roll);
+    eng.calcsin(orvec);
+    eng.calcmat(static_cast<u16>(d::f3dvec::orot));
+    eng.calcsin(orvec);
+    eng.ncalcmat(static_cast<u16>(d::f3dvec::norot));
+    gs.setDw(d::m3::ox, o.x);
+    gs.setDw(d::m3::ox + 4, o.y);
+    gs.setDw(d::m3::ox + 8, o.z);
+    gs.setW(d::m3::viewkludge, o.pitch);
 }
 
-// Call after Renderer::drawPanel
-void drawHud(Renderer& r, const Plane& p, float fps) {
-    const int cx = static_cast<int>(Renderer::GFX_CTR_X), cy = static_cast<int>(Renderer::GFX_CTR_Y);
-    r.line2D(cx - 10, cy, cx - 3, cy, YELLOW);
-    r.line2D(cx + 3, cy, cx + 10, cy, YELLOW);
-    r.line2D(cx, cy - 6, cx, cy - 2, YELLOW);
+// One frame in the order of the 3.ASM main loop
+void drawFrame(GameState& gs, engine::F3dVec& eng) {
+    const u16 ptrgwinf = gs.uw(d::m3::ptrgwinf);
+    gs.setW(d::m3::frmnum, static_cast<i16>(gs.w(d::m3::frmnum) + 1));
+    eng.epage();
 
-    float yaw, pitch, roll;
-    p.orient.euler(yaw, pitch, roll);
-    int hdg = static_cast<int>(std::lround(yaw + 360.0f)) % 360;
+    eng.modhr();
+    gs.setB(d::m3::hrflg, 0xFF);
+    eng.d3dobj(static_cast<u16>(d::m3::hrobj), ptrgwinf);
+    gs.setB(d::m3::hrflg, 0);
 
-    // Temporary digital readouts in the panel's center window until the
-    // needle gauges (drawndles in INST.ASM) are ported
-    char buf[64];
-    const int tx = Renderer::GT_MIN_X + 12, ty = Renderer::GT_MIN_Y + 10;
-    std::snprintf(buf, sizeof buf, "AIRSPEED %4d MPH", static_cast<int>(p.speed / 2));
-    r.text(tx, ty, buf, LIGHTGREEN);
-    std::snprintf(buf, sizeof buf, "ALTITUDE %4d", static_cast<int>(p.pos.y - EYE_HEIGHT));
-    r.text(tx, ty + 14, buf, LIGHTGREEN);
-    std::snprintf(buf, sizeof buf, "HEADING   %03d", hdg);
-    r.text(tx, ty + 28, buf, LIGHTGREEN);
-    std::snprintf(buf, sizeof buf, "THROTTLE  %3d%%", static_cast<int>(p.throttle * 100));
-    r.text(tx, ty + 42, buf, LIGHTGREEN);
-    std::snprintf(buf, sizeof buf, "%3d FPS", static_cast<int>(fps));
-    r.text(Renderer::GT_MAX_X - 64, Renderer::GT_MAX_Y - 12, buf, DARKGRAY);
+    // the sun: 1000 units out at sunangle above the horizon
+    const u16 xvec = static_cast<u16>(d::m3::xvec);
+    const i16 sunangle = gs.w(d::m3::sunangle);
+    gs.setW(xvec, 0);
+    gs.setW(xvec + 2, asmx::hmul(static_cast<i16>(-engine::ssin(sunangle)), 1000));
+    gs.setW(xvec + 4, asmx::hmul(engine::scos(sunangle), 1000));
+    eng.drawrdirect(static_cast<u16>(d::defobjs::objsun), ptrgwinf);
 
-    if (p.crashed) {
-        r.text(cx - 56, cy - 30, "CRASHED", LIGHTRED, 2);
-        r.text(cx - 72, cy + 10, "PRESS R TO RESTART", WHITE);
-    } else if (p.speed < 1.0f) {
-        r.text(cx - 212, 12, "A/Z THROTTLE  ARROWS FLY  , . RUDDER  V VIEW  ESC QUIT", WHITE);
-    }
+    eng.drawnear();
+    eng.flipage();
 }
 
 } // namespace
 
 int main(int argc, char* argv[]) {
-    // --screenshot <file.bmp>: skip the intro, render a few frames in flight, save one, exit
+    // --screenshot <file.bmp>: skip the intro, render a few frames, save one, exit
     // --shot-intro <prefix>:   run intro + loading screen unattended, save one BMP per scene, exit
     // --skip-intro:            go straight to the loading screen and game
+    // --hd <n>:                start at n x 640x350 (HD mode)
+    // --pose z,yaw,pitch,roll[,fwd]: screenshot viewpoint (fwd moves along the start heading)
     const char* shotPath = nullptr;
     const char* introShots = nullptr;
+    const char* pose = nullptr;
     bool skipIntro = false;
+    int hd = 1;
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) shotPath = argv[++i];
+        else if (std::strcmp(argv[i], "--pose") == 0 && i + 1 < argc) pose = argv[++i];
         else if (std::strcmp(argv[i], "--shot-intro") == 0 && i + 1 < argc) introShots = argv[++i];
         else if (std::strcmp(argv[i], "--skip-intro") == 0) skipIntro = true;
+        else if (std::strcmp(argv[i], "--hd") == 0 && i + 1 < argc) hd = std::clamp(std::atoi(argv[++i]), 1, 4);
     }
-    int frame = 0;
 
     init_sin_table();
 
@@ -223,101 +171,99 @@ int main(int argc, char* argv[]) {
         if (introShots) return 0;
     }
 
-    Renderer renderer(window.sdlRenderer());
+    GameState gs;
+    EgaScreen screen(hd);
+    engine::F3dVec eng(gs, screen);
+    Display display(window.sdlRenderer());
     EgaImg panel;
-    if (loadImg(assetPath("IMG/3D.IMG"), panel)) renderer.setPanel(panel);
+    const bool havePanel = loadImg(assetPath("IMG/3D.IMG"), panel);
+    if (havePanel) screen.drawPanel(panel, 0);
+    eng.readcolors();
+    eng.setcolors(255);
+
     Input input;
     input.initJoystick();
 
-    // Scene: placeholder stand-ins for the airfield, HQs and targets
-    Model tower = makeTower(LIGHTGRAY);
-    Model hangar = makeBox(120, 40, 80, BROWN);
-    Model hq = makeBox(80, 60, 80, LIGHTRED);
-    Model pyramid = makePyramid(150, 120, YELLOW);
-    Model bunker = makeBox(40, 15, 40, LIGHTMAGENTA);
+    // Start where 3.ASM puts the player: startcoords, moved back to the runway start
+    Observer obs;
+    obs.x = gs.dw(d::m3::startcoords);
+    obs.y = gs.dw(d::m3::startcoords + 4) - 8000;   // ox+4 -= w*4
+    obs.z = gs.dw(d::m3::startcoords + 8);
+    obs.yaw = gs.w(d::m3::startcoords + 12);
+    obs.pitch = gs.w(d::m3::startcoords + 14);
 
-    std::vector<Placed> scene = {
-        {&tower, {90, 0, -300}, 0},
-        {&hangar, {140, 0, -150}, 0},
-        {&hangar, {140, 0, 0}, 0},
-        {&hq, {2500, 0, 3000}, 20},
-        {&hq, {-3000, 0, 4500}, -35},
-        {&pyramid, {-1200, 0, 2200}, 10},
-        {&pyramid, {1800, 0, 6000}, 45},
-    };
-    for (int i = 0; i < 12; i++) {
-        float a = i * 30.0f * DEG2RAD;
-        scene.push_back({&bunker, {std::cos(a) * 5000, 0, 3000 + std::sin(a) * 3500}, i * 17.0f});
+    // Stand-in scenery: real DEFOBJS templates laid out ahead of the start
+    DemoScene scene(gs, eng);
+    {
+        const i16 c = engine::scos(obs.yaw), s = engine::ssin(obs.yaw);
+        auto at = [&](int fwd, int side, int type, int32_t z = INT32_MIN) {
+            int32_t x = obs.x + static_cast<int32_t>((static_cast<int64_t>(fwd) * c - static_cast<int64_t>(side) * s) >> 15);
+            int32_t y = obs.y + static_cast<int32_t>((static_cast<int64_t>(fwd) * s + static_cast<int64_t>(side) * c) >> 15);
+            scene.place(type, x, y, z, obs.yaw);
+        };
+        for (int f = 4000; f <= 68000; f += 16000) at(f, 0, T_ROAD, 0);
+        at(20000, 9000, T_TOWER);
+        at(36000, -9000, T_HUT);
+        at(52000, 12000, T_RADAR);
+        at(90000, -6000, T_HQ);
+        at(140000, 30000, T_HQ);
+        at(30000, -16000, T_VECH);
+        at(70000, 20000, T_TW);
     }
 
-    Plane plane;
     if (shotPath) {
-        // Airborne over the field, banked slightly, looking toward the targets
-        plane.pos = {-150, 180, -700};
-        plane.orient.rotate(15, -8, 12);
-        plane.speed = 300;
-        plane.throttle = 0.5f;
+        // a little above the field, banked, looking down the line of objects
+        obs.z = 4000;
+        obs.pitch = 900;
+        obs.roll = 1500;
+        if (pose) {
+            int z = obs.z, yaw = obs.yaw, pitch = obs.pitch, roll = obs.roll, fwd = 0;
+            std::sscanf(pose, "%d,%d,%d,%d,%d", &z, &yaw, &pitch, &roll, &fwd);
+            const i16 c = engine::scos(obs.yaw), s = engine::ssin(obs.yaw);
+            obs.x += static_cast<int32_t>((static_cast<int64_t>(fwd) * c) >> 15);
+            obs.y += static_cast<int32_t>((static_cast<int64_t>(fwd) * s) >> 15);
+            obs.z = z;
+            obs.yaw = static_cast<i16>(yaw);
+            obs.pitch = static_cast<i16>(pitch);
+            obs.roll = static_cast<i16>(roll);
+        }
     }
-    bool chaseView = shotPath != nullptr;
-    float propAngle = 0.0f;
-    // Original object units -> world units: the ~2500-long plane becomes ~40 long
-    constexpr float PLANE_SCALE = 1.0f / 60.0f;
+
     Uint64 prev = SDL_GetPerformanceCounter();
     const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
-    float fps = 60.0f;
+    int frame = 0;
 
     while (window.pollEvents()) {
         Uint64 now = SDL_GetPerformanceCounter();
-        float dt = static_cast<float>((now - prev) / freq);
+        float dt = std::min(static_cast<float>((now - prev) / freq), 0.1f);
         prev = now;
-        dt = std::min(dt, 0.1f);
-        if (dt > 0) fps = fps * 0.95f + (1.0f / dt) * 0.05f;
 
         input.update();
         if (input.isKeyJustDown(SDL_SCANCODE_ESCAPE)) break;
-        updatePlane(plane, input, dt);
+        if (input.isKeyJustDown(SDL_SCANCODE_H)) {
+            // HD toggle: 1x <-> 2x, panel redrawn into the new pages
+            screen.setScale(screen.scale() == 1 ? 2 : 1);
+            if (havePanel) screen.drawPanel(panel, 0);
+        }
+        if (input.isKeyJustDown(SDL_SCANCODE_T)) {
+            // tail (rear view) window on/off
+            gs.setW(d::m3::ptrgwint, gs.w(d::m3::ptrgwint) ? 0 : static_cast<i16>(d::m3::gwint));
+            if (havePanel) screen.drawPanel(panel, 0);
+        }
+        if (input.isKeyJustDown(SDL_SCANCODE_F)) gs.setB(d::m3::fillflg, gs.b(d::m3::fillflg) ? 0 : 0xFF);
+        if (input.isKeyJustDown(SDL_SCANCODE_R)) obs.roll = obs.pitch = 0;
 
-        renderer.beginFrame();
-        if (input.isKeyJustDown(SDL_SCANCODE_V)) chaseView = !chaseView;
-        propAngle += (200.0f + plane.throttle * 2000.0f) * dt;
+        steer(obs, input, dt);
+        applyObserver(obs, gs, eng);
+        moveObserver(obs, gs, dt);
+        applyObserver(obs, gs, eng);
 
-        P3 camPos = plane.pos;
-        Mat3x3 camOrient = plane.orient;
-        if (chaseView) {
-            // Behind and above, looking slightly down at the plane
-            const float* u = &plane.orient.m[3];
-            const float* f = &plane.orient.m[6];
-            camPos = {plane.pos.x - f[0] * 70 + u[0] * 18,
-                      plane.pos.y - f[1] * 70 + u[1] * 18,
-                      plane.pos.z - f[2] * 70 + u[2] * 18};
-            camPos.y = std::max(camPos.y, 2.0f);
-            camOrient = Mat3x3::rotX(-12.0f) * plane.orient;
+        drawFrame(gs, eng);
+        if (shotPath && ++frame == 4) {
+            display.saveBmp(screen, eng.palette(), shotPath);
+            break;
         }
-        renderer.setCamera(camPos, camOrient);
-        renderer.horizon(BLUE, BLACK);
-        drawGround(renderer, plane.pos);
-        drawRunway(renderer);
-        for (auto& o : scene) renderer.model(*o.model, o.pos, o.yaw);
-        if (chaseView) {
-            float dx = plane.pos.x - camPos.x, dy = plane.pos.y - camPos.y, dz = plane.pos.z - camPos.z;
-            float distOrig = std::sqrt(dx * dx + dy * dy + dz * dz) / PLANE_SCALE;
-            bool med = distOrig > PLANE_MED_LOD_DIST;
-            const Model& body = plane.crashed ? playerPlaneSmokeModel()
-                              : med ? playerPlaneMedModel() : playerPlaneModel();
-            renderer.model(body, plane.pos, plane.orient, PLANE_SCALE);
-            if (!plane.crashed) {
-                // Spin the prop about the body's forward axis
-                Mat3x3 propOrient = Mat3x3::rotZ(propAngle) * plane.orient;
-                renderer.model(med ? propellerMedModel() : propellerModel(), plane.pos, propOrient, PLANE_SCALE);
-            }
-        }
-        renderer.drawPanel();
-        drawHud(renderer, plane, fps);
-        if (shotPath && ++frame == 10) {
-            renderer.saveScreenshot(shotPath);
-            window.setQuit();
-        }
-        renderer.endFrame();
+        display.present(screen, eng.palette(), eng.panX(), eng.panY());
     }
     return 0;
 }

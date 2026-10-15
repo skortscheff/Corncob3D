@@ -8,8 +8,8 @@ original MASM source (the `*.ASM`/`*.INC` files in this directory).
 | Phase | Scope | State |
 |---|---|---|
 | 0 | Foundations: bit-exact ASM math, DGROUP extractor, `GameState`, `TickClock`, tests | ✅ done |
-| 1 | 3D engine (`F3DVEC`, `MAT`, `CLIP`, filled polygons) + HD option | next |
-| 2 | World (universe/tower files, `MAP.ASM`) | |
+| 1 | 3D engine (`F3DVEC`, `MAT`, `HLINE`, filled polygons) + HD option | ✅ done |
+| 2 | World (universe/tower files, `MAP.ASM`) | next |
 | 3 | Player and flight (`3.ASM`) | |
 | 4 | Instruments (`INST.ASM`), help screens | |
 | 5 | Combat and timed objects (`STRTEXP.ASM`), end-of-mission pictures | |
@@ -18,10 +18,10 @@ original MASM source (the `*.ASM`/`*.INC` files in this directory).
 | 8 | Recreated front end (menus, roster, briefings, high scores) | |
 | 9 | Polish and packaging | |
 
-Already playable as a preview: the original intro/story and loading screen, the real instrument panel,
-the decoded player plane, and a **placeholder** flight model with a wireframe world (replaced from
-Phase 1 on).
-
+Playable as a preview: the original intro/story and loading screen, the real instrument panel, and
+every frame drawn by the ported 3D engine (filled sky/ground horizon, polygons, spheres, wire frames,
+rear-view window, page flipping, palette). The observer is steered by a **placeholder** controller,
+and a few real object templates stand in for the world until Phases 2–3.
 ## Building (Windows, MSYS2 UCRT64)
 
 ```powershell
@@ -49,15 +49,17 @@ searches upward from its own folder for `assets/original/`.
 | Key | Action |
 |---|---|
 | Any key / Esc | Next intro scene / skip the intro |
-| A / Z, 1–0 | Throttle up / down, presets |
+| A / Z | Speed up / down (placeholder controller) |
 | Arrows | Pitch and roll |
-| `,` `.` | Rudder |
-| V | Chase view |
-| R | Restart after a crash |
+| `,` `.` | Yaw |
+| R | Level the wings |
+| T | Rear-view window on/off |
+| F | Horizon fill on/off (the original's wireframe-horizon mode) |
+| H | HD mode (2× resolution) on/off |
 | Esc | Quit (in game) |
-
-Command-line options: `--skip-intro`, `--screenshot <file.bmp>`, `--shot-intro <prefix>` (the last two
-render unattended, save screenshots, and exit; used for testing).
+Command-line options: `--skip-intro`, `--hd <n>`, `--screenshot <file.bmp>` (optionally with
+`--pose z,yaw,pitch,roll[,fwd]`), `--shot-intro <prefix>` (the screenshot options render unattended,
+save BMPs, and exit; used for testing).
 
 ## Layout
 
@@ -70,7 +72,8 @@ render unattended, save screenshots, and exit; used for testing).
 | `src/game/TickClock.hpp` | Emulation of the reprogrammed PIT timer |
 | `src/assets/` | Loaders for `.VGA`, `.PAL`, `.IMG`, `PICT.DAT`/`TPICT.DAT` |
 | `src/ui/Intro.*` | Title, story and loading screens |
-| `src/render/` | Current wireframe renderer (to be replaced), framebuffer, 8×8 font |
+| `src/engine/` | The 3D engine: `F3dVec` (F3DVEC/MAT/HLINE/KLINE), `AsmTables` (SIN/CSQRT tables) |
+| `src/render/` | `EgaScreen` (two indexed EGA pages, palette, presentation), framebuffer, 8×8 font |
 | `src/platform/` | SDL window and input |
 | `tests/` | ctest unit tests |
 
@@ -85,3 +88,20 @@ render unattended, save screenshots, and exit; used for testing).
 - **`.IMG`**: 4-byte header, then `[u16 fill count][u8 byte][u16 literal count][bytes…]` → 640×350 1-bit.
 - **`PICT.DAT`**: `nlines, x, y, file, color, (row, col, text)…`, entries separated by `^L`.
   **`TPICT.DAT`**: `x, y, file, nlines, color, (col, row, text)…`, terminated by `-1`.
+
+## 3D engine notes
+
+The engine works on the original data segment: object shapes, matrices and scratch buffers are the
+DGROUP bytes, addressed by the same offsets the ASM uses. Known differences from the original:
+
+- **`sas.lib` routines** (the author's math library) aren't in the source: `divrs_dw` is implemented
+  as a rounded signed divide (matching the library's `.divr_*` macros), `div_dw`/`muls_*` from their
+  macro definitions, and `rand_w` is a stand-in LCG.
+- **Lines**: KLINE's run-slice routine for long shallow lines is drawn with EGALINE's Bresenham; the
+  same pixels give or take one per row.
+- **Dithered fills** (colors above 15): the pattern is applied by absolute pixel position; the ASM
+  shifts it by the start pixel in the first byte of long spans.
+- **Divide overflow**: the 8086 would trap (and DOS abort); the port saturates the quotient.
+- `CLIP.ASM` is only linked in the Hercules build; the EGA build clips with F3DVEC's own `oclip`.
+- Not yet ported: ground dots (`g3dobj`, Phase 3), `getang` (needs `ATN.ASM`), tile/memseg tables
+  (Phase 2), and the collision/timed-object calls inside `drawnear` (stubbed until Phases 3 and 5).
