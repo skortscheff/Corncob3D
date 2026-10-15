@@ -1,0 +1,8 @@
+# Build output
+build/
+dist/
+
+# Original game data is copyrighted shareware: keep local, never commit
+assets/original/
+*.ZIP
+*.zip
