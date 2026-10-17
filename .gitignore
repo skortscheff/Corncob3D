@@ -6,3 +6,8 @@ dist/
 assets/original/
 *.ZIP
 *.zip
+
+# Local DOSBox for comparing against the original game
+tools/dosbox/
+tools/dosbox-dl/
+run/

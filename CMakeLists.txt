@@ -114,3 +114,8 @@ if(WIN32)
     add_custom_command(TARGET corncob3d POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:SDL2::SDL2> $<TARGET_FILE_DIR:corncob3d>)
 endif()
+
+# Dev tool: object type counts per theater
+add_executable(theaterstats tools/theaterstats.cpp src/game/World.cpp src/engine/F3dVec.cpp src/engine/F3dObj.cpp src/engine/AsmTables.cpp src/render/EgaScreen.cpp)
+target_include_directories(theaterstats PRIVATE src/)
+target_link_libraries(theaterstats PRIVATE SDL2::SDL2 dgroup)
