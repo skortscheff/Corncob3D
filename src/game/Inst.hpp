@@ -51,6 +51,9 @@ public:
     // The gunsight in the middle of the window
     void drawgs();
 
+    // A dot on the radar: distance 0-255 and angle (0-65535) from straight ahead, in color n
+    void radardot(u16 dist, i16 angle);
+
 private:
     i16 W(u32 o) const { return m_g.w(o); }
     u16 UW(u32 o) const { return m_g.uw(o); }

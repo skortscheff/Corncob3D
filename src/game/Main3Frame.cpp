@@ -734,7 +734,7 @@ void Main3::viewKeys() {
     if (scnIs(0x2F)) {   // 'v': call the rescue vehicle
         clearScn();
         if (B(M3(ejectflag)) != 0 && B(M3(standingflag)) != 0 && W(M3(maxnrvs)) == 0 && B(M3(homeflag)) == 0) {
-            // rescuestart: Phase 5
+            rescuestart();
         }
     }
     if (scnIs(0x45)) {   // numlock

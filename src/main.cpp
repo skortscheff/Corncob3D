@@ -24,6 +24,7 @@
 #include "platform/Window.hpp"
 #include "render/EgaScreen.hpp"
 #include "ui/Intro.hpp"
+#include "ui/MissionEnd.hpp"
 #include "DGroup.hpp"
 
 #include <SDL.h>
@@ -138,6 +139,10 @@ int main(int argc, char* argv[]) {
     // --training:              a training mission: no theater file, the permanent objects of initperms
     // --spawn-hit <n>:         a development aid: a ground missile site appears ahead of the plane at
     //                          frame 1 and is destroyed at frame n (to look at the explosion pieces)
+    // --end-pictures <hex status> [--death <code>] [--shot-end <prefix>]:
+    //                          show the mission-end pictures for a mission status (as the tower would
+    //                          after a mission), or save them as <prefix>NN.bmp, and exit
+    // --res <file>:            write the result block (3.res) there when the mission ends
     const char* shotPath = nullptr;
     const char* introShots = nullptr;
     const char* theater = "MORNING";
@@ -149,6 +154,9 @@ int main(int argc, char* argv[]) {
     int shotFrames = 8;
     int fps = 20;   // game frames per second (the original: 10-20, depending on the machine)
     int spawnHitFrame = -1;
+    int endStatus = -1, deathCode = 0;
+    const char* shotEnd = nullptr;
+    const char* resPath = nullptr;
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) shotPath = argv[++i];
         else if (std::strcmp(argv[i], "--theater") == 0 && i + 1 < argc) theater = argv[++i];
@@ -161,6 +169,10 @@ int main(int argc, char* argv[]) {
         else if (std::strcmp(argv[i], "--fps") == 0 && i + 1 < argc) fps = std::clamp(std::atoi(argv[++i]), 5, 60);
         else if (std::strcmp(argv[i], "--keyscript") == 0 && i + 1 < argc) keyscript = argv[++i];
         else if (std::strcmp(argv[i], "--spawn-hit") == 0 && i + 1 < argc) spawnHitFrame = std::max(2, std::atoi(argv[++i]));
+        else if (std::strcmp(argv[i], "--end-pictures") == 0 && i + 1 < argc) endStatus = static_cast<int>(std::strtol(argv[++i], nullptr, 16));
+        else if (std::strcmp(argv[i], "--death") == 0 && i + 1 < argc) deathCode = std::atoi(argv[++i]);
+        else if (std::strcmp(argv[i], "--shot-end") == 0 && i + 1 < argc) shotEnd = argv[++i];
+        else if (std::strcmp(argv[i], "--res") == 0 && i + 1 < argc) resPath = argv[++i];
     }
     uint16_t spawnedSite = 0;
 
@@ -168,6 +180,11 @@ int main(int argc, char* argv[]) {
 
     Window window;
     if (!window.init()) return 1;
+
+    if (endStatus >= 0) {   // just the end-of-mission pictures
+        runMissionEnd(window, missionPictures(static_cast<uint16_t>(endStatus), 0, static_cast<uint16_t>(deathCode)), shotEnd);
+        return 0;
+    }
 
     if (!shotPath) {
         std::string prefix = introShots ? introShots : "";
@@ -214,6 +231,16 @@ int main(int argc, char* argv[]) {
         EgaImg img;
         if (loadImg(assetPath("IMG/3D" + std::to_string(n) + ".IMG"), img)) screen.drawPanel(img, 0);
     });
+    game.onCrashScreen([&]() {   // 3.ASM crash: the screen fills red and shakes for 18 ticks, then a pause
+        const int s = screen.scale();
+        screen.fillRect(0, 0, 640 * s, 350 * s, 4);
+        if (shotPath) return;   // scripted runs don't wait
+        for (int k = 0; k < 18 + 14; k++) {
+            if (!window.pollEvents()) break;
+            display.present(screen, eng.palette(), 0, 0);
+            SDL_Delay(55);
+        }
+    });
     game.startUp(!training);
 
     const int minFrameTicks = static_cast<int>(TickClock::FAST_HZ / fps);
@@ -226,6 +253,7 @@ int main(int argc, char* argv[]) {
     Uint64 prev = SDL_GetPerformanceCounter();
     const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
     int frame = 0;
+    bool gameOver = false;
 
     while (window.pollEvents()) {
         const Uint64 now = SDL_GetPerformanceCounter();
@@ -299,7 +327,22 @@ int main(int argc, char* argv[]) {
             break;
         }
         display.present(screen, eng.palette(), eng.panX(), eng.panY());
-        if (!going) break;
+        if (!going) {
+            gameOver = true;
+            break;
+        }
+    }
+    if (gameOver) {
+        game.finishResults();
+        if (resPath) {   // the result block the tower reads
+            if (std::FILE* f = std::fopen(resPath, "wb")) {
+                const std::vector<uint8_t> block = game.resultBytes();
+                std::fwrite(block.data(), 1, block.size(), f);
+                std::fclose(f);
+            }
+        }
+        // PICT.ASM: the picture for how it ended (the tower and the score come with the front end)
+        runMissionEnd(window, missionPictures(gs.uw(d::m3::missionstatus), gs.uw(d::m3::nfdest), gs.uw(d::m3::deathcode)));
     }
     return 0;
 }

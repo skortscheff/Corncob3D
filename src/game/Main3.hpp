@@ -27,6 +27,7 @@
 #include "game/World.hpp"
 #include <cstdint>
 #include <functional>
+#include <vector>
 
 namespace corncob::game {
 
@@ -74,6 +75,15 @@ public:
 
     // The AdLib sound; without it the game is silent
     void setSound(Sound* s) { m_snd = s; }
+
+    // What 3.ASM does once the loop is over, before the result file is written: the planes lost lose the
+    // kill-me-tough ones (they were suicide missions), and the status is patched for them
+    void finishResults();
+    // The result block the original writes to 3.res (nresbytes = 140 bytes from missionstatus on), which
+    // the tower reads to tally the mission
+    std::vector<uint8_t> resultBytes() const;
+    // Told when the plane crashes: the screen goes red and shakes (about 1.8 seconds)
+    void onCrashScreen(std::function<void()> f) { m_crashScreen = std::move(f); }
 
 private:
     // ---- DGROUP access ----
@@ -250,10 +260,62 @@ private:
     void soundToggle();
 
     // ---- hooks owned by later phases ----
-    void initnumbers() {}                     // Phase 5d
+    // ---- the enemies and the mission objects (Main3Sites.cpp, Main3Flyers.cpp) ----
+    u16 getqtblptr(u32 table, u16 si, u8& quality);   // the entry of a quality table for the object at si
+    bool enoughits(u16 si, u16 di);                   // true = destroyed
+    void incW(u32 off) { SW(off, static_cast<i16>(W(off) + 1)); }
+    bool radarprocess(u16 si);                        // true = too far
+    void addaa(u16 si);
+    void addball(u16 si);
+    i16 getobsyaw();
+    i16 getobspit();
+    void adjdballv(u16 q);
+    void aatim(u16 si, u16 di, bool carry);
+    void sauceraa(u16 si);
+    void aashelltim(u16 si, bool carry);
+    void dballtim(u16 si, bool carry);
+    bool strtdball(u16 src);
+    bool strtvech(u16 src);
+    void killvech(u16 si);
+    void resetvech(u16 si);
+    void followangles(u16 si);
+    void vechtim(u16 si, u16 di, bool carry);
+    void vesttim(u16 si, u16 di, bool carry);
+    void dbsttim(u16 si, u16 di, bool carry);
+    void resetvest(u16 si);
+    void resetdbst(u16 si);
+    void bbtim(u16 si, bool carry);
+    void bbsmtim(u16 si, bool carry);
+    void mortim(u16 si, u16 di, bool carry);
+    void walltim(u16 si, bool carry);
+    void lwalltim(u16 si, bool carry);
+    void initnumbers();
+    void bigdest(u16 si, u16 di, bool carry);
+    void dhqtim(u16 si);
+    void hqtim(u16 si);
+    void hqtim1(u16 si);
+    void attractplane(u16 si);
+    void incondest(u16 si);
+    void randspin(u16 si);
+    void shelltim(u16 si, bool carry);
+    void mandest(u16 si, u16 di, bool carry);
+    void huttim(u16 si, bool carry);
+    bool strtbmr(u16 src);
+    void bmrtim(u16 si, u16 di, bool carry);
+    void bmrstim(u16 si, u16 di, bool carry);
+    void bmrmodes(u16 si, u16 q, int mode);
+    void startvector(u16 si);
+    void shootshells(u16 si);
+    void stettim(u16 si, u16 di, bool carry);
+    void tettim(u16 si, u16 di, bool carry);
+    void altim(u16 si, u16 di, bool carry);
+    void xptim(u16 si, u16 di, bool carry);
+    void qxpdamage(i16 bx);
+    i16 hoparound(i16 ax, u16 bx);
+    void rescuestart();
 
     // ---- the weapons (Main3Weapons.cpp) ----
-    bool getobsvec(u16 si);                   // true = the observer is too far
+    bool getobsvec(u16 si, bool playerOnly = false);   // true = the observer is too far
     bool findbul(u16& si);
     void bulstrt();
     void bobjmov(u16 si);
@@ -276,6 +338,7 @@ private:
     sas::Random m_rand;
     std::function<void(bool)> m_viewChanged;
     std::function<void(int)> m_showImage;
+    std::function<void()> m_crashScreen;
     u16 m_holdColors = 0;
     bool m_padActive = false;
     float m_padRoll = 0, m_padPitch = 0, m_padRudder = 0;

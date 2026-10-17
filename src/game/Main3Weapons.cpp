@@ -31,8 +31,8 @@ constexpr int NBYTEBUL = d::m3_equ::nbytebul;
 // getobsvec: the vector from the object at si to the observer (the player, or the plane when he has
 // ejected), divided by 64, into dtopv with the sign changed; its length is left in dballdist.
 // Returns true (carry) when the observer is too far away.
-bool Main3::getobsvec(u16 si) {
-    const bool far = B(M3(ejectflag)) != 0 ? m_eng.relobj5d(si) : m_eng.rel3d(si);
+bool Main3::getobsvec(u16 si, bool playerOnly) {
+    const bool far = (B(M3(ejectflag)) != 0 && !playerOnly) ? m_eng.relobj5d(si) : m_eng.rel3d(si);
     if (far) return true;
     const u16 cx = m_eng.rangeBits();
     if (cx >> 8) return true;

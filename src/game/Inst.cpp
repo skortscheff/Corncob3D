@@ -167,6 +167,22 @@ void Instruments::drawthrt() {   // a ball at the throttle position
     m_eng.drawdisc(w);
 }
 
+// INST.ASM radardot: the radar screen is the front window's lower part; nothing when the window is the
+// full screen
+void Instruments::radardot(u16 dist, i16 angle) {
+    if (UW(UW(L(ptrgwinf)) + 6) >= 210) return;   // full window: no radar
+    const u32 w0 = L(win0);
+    const int s = m_scr.scale();
+    const i16 xsc = static_cast<i16>((static_cast<u32>(dist) * UW(w0 + 8)) >> 8);   // scale into 0-xsize
+    const i16 ysc = static_cast<i16>((static_cast<u32>(dist) * UW(w0 + 10)) >> 8);
+    const i16 x = add16(hi16(imul16(neg16(ssin(angle)), xsc)), W(w0 + 16));   // sin for x, cos for y
+    const i16 y = add16(hi16(imul16(neg16(scos(angle)), ysc)), W(w0 + 18));
+    SW(L(xc), static_cast<i16>(x * s));
+    SW(L(yc), static_cast<i16>(y * s));
+    SW(L(xw), static_cast<i16>(3 * s));
+    m_eng.drawdisc(m_eng.win(static_cast<u16>(w0)));
+}
+
 void Instruments::erasthr() {
     const int s = m_scr.scale();
     engine::Win w{};

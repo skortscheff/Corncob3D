@@ -484,10 +484,26 @@ void Main3::crash() {
         m_snd->b3laminit();
         voiceon(2, 0x10);
     }
-    // (the red crash screen: Phase 8)
     SW(M3(missionstatus), static_cast<i16>(UW(M3(missionstatus)) & 0xFFFE));   // clear the abort bit
     SW(M3(missionstatus), static_cast<i16>(UW(M3(missionstatus)) | 2));        // set the killed bit
     SW(M3(nplaneslost), add16(W(M3(nplaneslost)), 1));
+    if (m_crashScreen) m_crashScreen();   // the screen goes red and shakes
+    adlwrt(0xBD, 0x20);   // turn off the scraping sound
+}
+
+// 3.ASM, after the loop: the tally for the result file
+void Main3::finishResults() {
+    i16 lost = sub16(W(M3(nplaneslost)), W(d::strtexp::nkillmetough));
+    if (lost < 0) lost = 0;   // we couldn't have killmetoughed
+    SW(M3(nplaneslost), lost);
+    SW(d::strtexp::nkillmetough, 0);   // so it can't be done twice
+    SW(M3(missionstatus), static_cast<i16>(UW(M3(missionstatus)) & UW(M3(patchcrash))));
+}
+
+std::vector<uint8_t> Main3::resultBytes() const {
+    constexpr uint32_t NRESBYTES = 70 * 2;
+    const uint8_t* base = m_g.raw() + M3(missionstatus);
+    return std::vector<uint8_t>(base, base + NRESBYTES);
 }
 
 } // namespace corncob::game

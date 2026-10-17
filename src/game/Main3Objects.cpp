@@ -101,7 +101,79 @@ void Main3::objroutine(u16 type, u16 si, u16 di, bool carry) {
     case 35: case 36: case 37: case 38: case 39:
         SW(si + 52, 32000);   // don't let it run down
         break;
-    default:  // the rest of the objects belong to Phase 5b-5d
+    case 0:   // bigdest: the headquarters orb
+        bigdest(si, di, carry);
+        break;
+    case 1:   // stettim: a tetrahedron of the special kind
+        stettim(si, di, carry);
+        break;
+    case 7:   // mandest: the man
+        mandest(si, di, carry);
+        break;
+    case 11:  // dbsttim: a death ball site
+        dbsttim(si, di, carry);
+        break;
+    case 12:  // vechtim: a vehicle
+    case 48:
+        vechtim(si, di, carry);
+        break;
+    case 13:  // vesttim: a vehicle site
+        vesttim(si, di, carry);
+        break;
+    case 14: case 15: case 16: case 17:   // walltim
+        walltim(si, carry);
+        break;
+    case 22:  // aashelltim: an anti-aircraft shell
+        aashelltim(si, carry);
+        break;
+    case 23:  // aatim: an anti-aircraft gun
+        aatim(si, di, carry);
+        break;
+    case 24:  // dballtim: a death ball
+        dballtim(si, carry);
+        break;
+    case 31:  // survtim: a survey marker, permanent
+        SW(si + 52, 32000);
+        break;
+    case 34:  // huttim: the hut
+        huttim(si, carry);
+        break;
+    case 40:  // bbtim: a barrage balloon
+        bbtim(si, carry);
+        break;
+    case 41:  // bbsmtim: a bee swarm
+        bbsmtim(si, carry);
+        break;
+    case 42:  // mortim: a mortar
+        mortim(si, di, carry);
+        break;
+    case 43:  // dhqtim: the wreck of an orb
+        dhqtim(si);
+        break;
+    case 44: case 45: case 46: case 47:   // lwalltim
+    case 54: case 55: case 56: case 59: case 60:
+        lwalltim(si, carry);
+        break;
+    case 49:  // shelltim
+        shelltim(si, carry);
+        break;
+    case 50:  // bmrtim: a bomber
+    case 53:
+        bmrtim(si, di, carry);
+        break;
+    case 51:  // bmrstim: a bomber site
+        bmrstim(si, di, carry);
+        break;
+    case 52:  // tettim: a tetrahedron
+        tettim(si, di, carry);
+        break;
+    case 57:  // altim: an alien
+        altim(si, di, carry);
+        break;
+    case 58:  // xptim: a portal
+        xptim(si, di, carry);
+        break;
+    default:
         break;
     }
 }

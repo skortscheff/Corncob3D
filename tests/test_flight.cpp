@@ -262,6 +262,78 @@ int main(int, char**) {
         CHECK(r.eng.cecode == 0);
     }
 
+    // A training mission: the sites, guns and balls of initperms all run their routines for a while
+    {
+        Run r("MORNING", true);
+        CHECK(r.ok);
+        auto countType = [&](int type) {
+            int n = 0;
+            for (int k = 0; k < 320; k++) {
+                const uint32_t o = d::strtexp::exps + 74u * k;
+                if (r.gs.w(o + 24) != 0 && r.gs.w(o + 72) == type) n++;
+            }
+            return n;
+        };
+        // full throttle, off the strip, climbing: everything gets its turn
+        r.fly(900, {{4, true, 0x4E}, {20, false, 0x4E}, {270, true, 0x50}, {286, false, 0x50}});
+        std::printf("training: frame ok, cecode=%d gms=%d aa=%d vest=%d dbst=%d dball=%d vech=%d mort=%d\n", r.eng.cecode,
+                    countType(27), countType(23), countType(13), countType(11), countType(24), countType(12), countType(42));
+        CHECK(r.eng.cecode == 0);
+    }
+
+    // The enemies, each placed off to the side of the runway: their routines must run without errors, and the
+    // ones that act do so (the aa guns shoot shells, the sites make death balls and vehicles, mortars fire)
+    {
+        Run r("MORNING", true);
+        CHECK(r.ok);
+        auto countType = [&](int type) {
+            int n = 0;
+            for (int k = 0; k < 320; k++) {
+                const uint32_t o = d::strtexp::exps + 74u * k;
+                if (r.gs.w(o + 24) != 0 && r.gs.w(o + 72) == type) n++;
+            }
+            return n;
+        };
+        r.fly(10, {});
+        const uint32_t kbuf = d::m3::kbuf, ox = d::m3::ox;
+        auto spot = [&](int dxPos, int dyPos) {   // a position near the plane (x and y offsets in units)
+            for (int k = 0; k < 9; k++) r.gs.setW(kbuf + 2 * k, r.gs.w(ox + 2 * k));
+            r.gs.setDw(kbuf, r.gs.dw(ox) + dxPos);
+            r.gs.setDw(kbuf + 4, r.gs.dw(ox + 4) + dyPos);
+            r.gs.setDw(kbuf + 8, 0);
+        };
+        uint16_t slot = 0;
+        spot(12000, 3000);
+        CHECK(!r.world.strtaa(static_cast<uint16_t>(kbuf), 7));
+        spot(-12000, 3000);
+        CHECK(!r.world.strtdbst(static_cast<uint16_t>(kbuf), 7));
+        spot(14000, 8000);
+        CHECK(!r.world.strtvest(static_cast<uint16_t>(kbuf), 7));
+        spot(-14000, 8000);
+        CHECK(!r.world.strtperm(static_cast<uint16_t>(kbuf), static_cast<uint16_t>(d::defobjs::objmort), 4, slot));
+        spot(-16000, 12000);
+        CHECK(!r.world.strtperm(static_cast<uint16_t>(kbuf), static_cast<uint16_t>(d::defobjs::objbb), 3, slot));
+        spot(16000, 12000);
+        CHECK(!r.world.strtperm(static_cast<uint16_t>(kbuf), static_cast<uint16_t>(d::defobjs::objtet), 0, slot));
+        spot(18000, 3000);
+        CHECK(!r.world.strtperm(static_cast<uint16_t>(kbuf), static_cast<uint16_t>(d::defobjs::objbmrst), 5, slot));
+        int shells = 0, balls = 0, vechs = 0, flot = 0, bmrs = 0;
+        for (int round = 0; round < 80; round++) {
+            r.fly(20, {});
+            shells = std::max(shells, countType(22));
+            balls = std::max(balls, countType(24));
+            vechs = std::max(vechs, countType(12));
+            flot = std::max(flot, countType(25) + countType(26));
+            bmrs = std::max(bmrs, countType(50));
+            if (r.game.done()) break;
+        }
+        std::printf("enemies: shells=%d balls=%d vechs=%d flotsam=%d bombers=%d cecode=%d done=%d\n", shells, balls, vechs,
+                    flot, bmrs, r.eng.cecode, r.game.done() ? 1 : 0);
+        CHECK(r.eng.cecode == 0);
+        CHECK(shells > 0);
+        CHECK(balls > 0);
+        CHECK(vechs > 0);
+    }
     if (failures == 0) std::printf("test_flight: all passed\n");
     return failures ? 1 : 0;
 }

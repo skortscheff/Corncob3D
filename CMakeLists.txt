@@ -52,11 +52,13 @@ add_executable(corncob3d
     src/game/Main3Objects.cpp
     src/game/Main3Panel.cpp
     src/game/Main3Sound.cpp
-    src/game/Main3Timed.cpp src/game/Main3Weapons.cpp
+    src/game/Main3Timed.cpp src/game/Main3Weapons.cpp src/game/Main3Sites.cpp src/game/Main3Flyers.cpp
     src/render/EgaScreen.cpp
     src/assets/Assets.cpp
     src/render/FrameBuffer.cpp
     src/ui/Intro.cpp
+    src/ui/MissionEnd.cpp
+    src/ui/MissionPictures.cpp
 )
 
 # The Yamaha OPL2 emulator (ymfm, BSD 3-clause)
@@ -92,7 +94,7 @@ add_test(NAME world COMMAND test_world)
 add_executable(test_flight tests/test_flight.cpp
     src/game/World.cpp src/game/Keyboard.cpp src/game/Main3.cpp src/game/Main3Flight.cpp
     src/game/Main3Ground.cpp src/game/Main3Frame.cpp src/game/Main3Misc.cpp src/game/Main3Map.cpp src/game/Main3Objects.cpp
-    src/game/Main3Panel.cpp src/game/Main3Sound.cpp src/game/Main3Timed.cpp src/game/Main3Weapons.cpp src/game/Inst.cpp src/audio/Sound.cpp src/audio/Opl.cpp
+    src/game/Main3Panel.cpp src/game/Main3Sound.cpp src/game/Main3Timed.cpp src/game/Main3Weapons.cpp src/game/Main3Sites.cpp src/game/Main3Flyers.cpp src/game/Inst.cpp src/audio/Sound.cpp src/audio/Opl.cpp
     src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/engine/F3dObj.cpp src/render/EgaScreen.cpp)
 target_include_directories(test_flight PRIVATE src/)
 target_compile_definitions(test_flight PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
@@ -103,6 +105,10 @@ target_include_directories(test_sound PRIVATE src/)
 target_compile_definitions(test_sound PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
 target_link_libraries(test_sound PRIVATE SDL2::SDL2 dgroup ymfm)
 add_test(NAME sound COMMAND test_sound)
+add_executable(test_pict tests/test_pict.cpp src/ui/MissionPictures.cpp)
+target_include_directories(test_pict PRIVATE src/)
+target_link_libraries(test_pict PRIVATE SDL2::SDL2)
+add_test(NAME pict COMMAND test_pict)
 
 if(WIN32)
     # Windowed app (no console) in release; keep the console in debug for logging
