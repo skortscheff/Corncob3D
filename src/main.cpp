@@ -28,6 +28,7 @@
 
 #include <SDL.h>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -63,14 +64,21 @@ std::vector<ScriptEvent> parseScript(const char* s) {
     return out;
 }
 
-// Xbox controller: the left stick is the flight stick, the right stick the rudder (and on foot,
-// running); the buttons press the keys of the original, so a button does what its key does.
-//   left stick   roll / pitch (pull back = nose up); on foot: turn and look
-//   right stick  rudder left/right; on foot: up = run forward, down = step back
-//   RT / LT      throttle up / down        D-pad up / down: the same
-//   A guns   X missiles   B bomb   Y flaps   LB brakes   RB autopilot
-//   D-pad left   rear window     D-pad right   ground detail dots
-//   Back eject (when out in the air, left stick click pulls the ripcord)   Start pause
+// Xbox controller, modern dual-stick scheme with one layout for the plane and one on foot. The
+// buttons press the keys of the original, so a button does what its key does.
+//
+//   In the plane
+//     left stick    pitch (pull back = nose up) and roll
+//     right stick   look: flick left / right / up for those views, down for the rear view
+//                   (the original's control key + cursor keys; it springs back when released)
+//     LB / RB       rudder left / right          RT / LT   throttle up / down (D-pad up / down too)
+//     A guns   X missiles   B bomb   Y flaps     L3 brakes   R3 autopilot
+//     D-pad left rear window   D-pad right ground detail dots
+//   On foot
+//     left stick    up = run forward, down = step back, left / right = turn
+//     right stick   look around (turn and tilt the view)
+//     A             pull the ripcord while falling
+//   Both          Back = eject / step out    Start = pause
 void updatePad(const Input& in, DosKeyboard& kbd, game::Main3& game, GameState& gs) {
     static bool held[32] = {};
     auto key = [&](int slot, bool down, uint8_t code) {
@@ -82,25 +90,38 @@ void updatePad(const Input& in, DosKeyboard& kbd, game::Main3& game, GameState& 
     const bool pad = in.hasGamepad();
     auto axis = [&](SDL_GameControllerAxis a) { return pad ? in.padAxis(a) : 0.0f; };
     auto btn = [&](SDL_GameControllerButton b) { return pad && in.padButton(b); };
-    game.setPad(pad, axis(SDL_CONTROLLER_AXIS_LEFTX), axis(SDL_CONTROLLER_AXIS_LEFTY), axis(SDL_CONTROLLER_AXIS_RIGHTX));
     const bool onFoot = gs.b(d::m3::ejectflag) != 0;
+    const float lx = axis(SDL_CONTROLLER_AXIS_LEFTX), ly = axis(SDL_CONTROLLER_AXIS_LEFTY);
+    const float rx = axis(SDL_CONTROLLER_AXIS_RIGHTX), ry = axis(SDL_CONTROLLER_AXIS_RIGHTY);
+
+    if (onFoot) game.setPad(pad, std::clamp(lx + rx, -1.0f, 1.0f), ry, 0.0f);   // turn and look
+    else game.setPad(pad, lx, ly, 0.0f);                                          // fly
+
     key(0, axis(SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 0.3f || btn(SDL_CONTROLLER_BUTTON_DPAD_UP), 0x4E);      // throttle +
     key(1, axis(SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 0.3f || btn(SDL_CONTROLLER_BUTTON_DPAD_DOWN), 0x4A);     // throttle -
-    key(2, btn(SDL_CONTROLLER_BUTTON_A), 0x39);                                                              // space: guns
+    key(2, btn(SDL_CONTROLLER_BUTTON_A), 0x39);                                                              // space: guns / ripcord
     key(3, btn(SDL_CONTROLLER_BUTTON_X), 0x2E);                                                              // c: missiles
     key(4, btn(SDL_CONTROLLER_BUTTON_B), 0x30);                                                              // b: bomb
     key(5, btn(SDL_CONTROLLER_BUTTON_Y), 0x21);                                                              // f: flaps
-    key(6, btn(SDL_CONTROLLER_BUTTON_LEFTSHOULDER), 0x34);                                                   // .: brakes
-    key(7, btn(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER), 0x1E);                                                  // a: autopilot
+    key(6, !onFoot && btn(SDL_CONTROLLER_BUTTON_LEFTSTICK), 0x34);                                           // .: brakes
+    key(7, !onFoot && btn(SDL_CONTROLLER_BUTTON_RIGHTSTICK), 0x1E);                                          // a: autopilot
     key(8, btn(SDL_CONTROLLER_BUTTON_DPAD_LEFT), 0x13);                                                      // r: rear window
     key(9, btn(SDL_CONTROLLER_BUTTON_DPAD_RIGHT), 0x22);                                                     // g: ground dots
     key(10, btn(SDL_CONTROLLER_BUTTON_BACK), 0x12);                                                          // e: eject / step out
-    key(11, btn(SDL_CONTROLLER_BUTTON_LEFTSTICK), 0x39);                                                     // space: ripcord
     key(12, btn(SDL_CONTROLLER_BUTTON_START), 0x19);                                                         // p: pause
-    key(13, onFoot && axis(SDL_CONTROLLER_AXIS_RIGHTY) < -0.5f, 0x4C);                                       // run forward
-    key(14, onFoot && axis(SDL_CONTROLLER_AXIS_RIGHTY) > 0.5f, 0x52);                                        // step back
+    key(13, onFoot && ly < -0.5f, 0x4C);                                                                     // run forward
+    key(14, onFoot && ly > 0.5f, 0x52);                                                                      // step back
+    key(15, !onFoot && btn(SDL_CONTROLLER_BUTTON_LEFTSHOULDER), 0x2C);                                       // z: rudder left
+    key(16, !onFoot && btn(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER), 0x2D);                                      // x: rudder right
+    // the right stick as the look keys: control + a cursor key (or keypad 5 for behind)
+    const bool flick = !onFoot && std::max(std::fabs(rx), std::fabs(ry)) > 0.6f;
+    const bool horiz = std::fabs(rx) >= std::fabs(ry);
+    key(17, flick, 0x1D);
+    key(18, flick && horiz && rx < 0, 0x4B);
+    key(19, flick && horiz && rx > 0, 0x4D);
+    key(20, flick && !horiz && ry < 0, 0x48);
+    key(21, flick && !horiz && ry > 0, 0x4C);
 }
-
 } // namespace
 
 int main(int argc, char* argv[]) {
