@@ -41,6 +41,7 @@ add_executable(corncob3d
     src/game/World.cpp
     src/audio/Opl.cpp
     src/audio/Sound.cpp
+    src/audio/RolPlayer.cpp
     src/game/Keyboard.cpp
     src/game/Inst.cpp
     src/game/Main3.cpp
@@ -109,6 +110,11 @@ add_executable(test_pict tests/test_pict.cpp src/ui/MissionPictures.cpp)
 target_include_directories(test_pict PRIVATE src/)
 target_link_libraries(test_pict PRIVATE SDL2::SDL2)
 add_test(NAME pict COMMAND test_pict)
+add_executable(test_rol tests/test_rol.cpp src/audio/Opl.cpp src/audio/RolPlayer.cpp)
+target_include_directories(test_rol PRIVATE src/)
+target_compile_definitions(test_rol PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
+target_link_libraries(test_rol PRIVATE SDL2::SDL2 ymfm)
+add_test(NAME rol COMMAND test_rol)
 
 if(WIN32)
     # Windowed app (no console) in release; keep the console in debug for logging

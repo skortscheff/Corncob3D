@@ -9,6 +9,7 @@
 
 #include "assets/Assets.hpp"
 #include "audio/Opl.hpp"
+#include "audio/RolPlayer.hpp"
 #include "audio/Sound.hpp"
 #include "core/AsmMath.hpp"
 #include "engine/AsmTables.hpp"
@@ -141,6 +142,8 @@ int main(int argc, char* argv[]) {
     //                          frame 1 and is destroyed at frame n (to look at the explosion pieces)
     // --spawn-enemies:         a development aid: an AA gun, a death ball site, a vehicle site, a mortar, a
     //                          barrage balloon, a tetrahedron and a bomber site appear around the strip
+    // --play-rol <FILE.ROL>:   play a song of the original music (CCMUSIC.BNK instruments) until Esc
+    // --wav-rol <FILE.ROL> <out.wav> <seconds>: render the start of a song to a WAV file
     // --end-pictures <hex status> [--death <code>] [--shot-end <prefix>]:
     //                          show the mission-end pictures for a mission status (as the tower would
     //                          after a mission), or save them as <prefix>NN.bmp, and exit
@@ -158,6 +161,10 @@ int main(int argc, char* argv[]) {
     int spawnHitFrame = -1;
     int endStatus = -1, deathCode = 0;
     bool spawnEnemies = false;
+    const char* playRol = nullptr;
+    const char* wavRol = nullptr;
+    const char* wavOut = nullptr;
+    int wavSeconds = 30;
     const char* shotEnd = nullptr;
     const char* resPath = nullptr;
     for (int i = 1; i < argc; i++) {
@@ -173,6 +180,12 @@ int main(int argc, char* argv[]) {
         else if (std::strcmp(argv[i], "--keyscript") == 0 && i + 1 < argc) keyscript = argv[++i];
         else if (std::strcmp(argv[i], "--spawn-hit") == 0 && i + 1 < argc) spawnHitFrame = std::max(2, std::atoi(argv[++i]));
         else if (std::strcmp(argv[i], "--spawn-enemies") == 0) spawnEnemies = true;
+        else if (std::strcmp(argv[i], "--play-rol") == 0 && i + 1 < argc) playRol = argv[++i];
+        else if (std::strcmp(argv[i], "--wav-rol") == 0 && i + 3 < argc) {
+            wavRol = argv[++i];
+            wavOut = argv[++i];
+            wavSeconds = std::max(1, std::atoi(argv[++i]));
+        }
         else if (std::strcmp(argv[i], "--end-pictures") == 0 && i + 1 < argc) endStatus = static_cast<int>(std::strtol(argv[++i], nullptr, 16));
         else if (std::strcmp(argv[i], "--death") == 0 && i + 1 < argc) deathCode = std::atoi(argv[++i]);
         else if (std::strcmp(argv[i], "--shot-end") == 0 && i + 1 < argc) shotEnd = argv[++i];
@@ -184,6 +197,53 @@ int main(int argc, char* argv[]) {
 
     Window window;
     if (!window.init()) return 1;
+
+    if (playRol || wavRol) {   // just the music (a development aid until the front end plays it)
+        Bnk bank;
+        RolSong song;
+        if (!bank.load(assetPath("CCMUSIC.BNK")) || !song.load(assetPath(playRol ? playRol : wavRol))) {
+            std::fprintf(stderr, "Can't read the song or CCMUSIC.BNK\n");
+            return 1;
+        }
+        Opl opl;
+        RolPlayer player(opl, bank);
+        player.start(song, playRol != nullptr);
+        if (wavRol) {   // write the first n seconds as a mono 16 bit WAV
+            const int rate = Opl::sampleRate();
+            const int total = rate * wavSeconds;
+            std::vector<int16_t> pcm(static_cast<size_t>(total));
+            int done = 0;
+            while (done < total) {
+                const int n = std::min(rate / 100, total - done);
+                player.update(0.01);
+                opl.render(pcm.data() + done, n);
+                done += n;
+            }
+            if (std::FILE* f = std::fopen(wavOut, "wb")) {
+                auto w32 = [&](uint32_t v) { std::fwrite(&v, 4, 1, f); };
+                auto w16 = [&](uint16_t v) { std::fwrite(&v, 2, 1, f); };
+                std::fwrite("RIFF", 1, 4, f);
+                w32(36 + total * 2);
+                std::fwrite("WAVEfmt ", 1, 8, f);
+                w32(16); w16(1); w16(1); w32(rate); w32(rate * 2); w16(2); w16(16);
+                std::fwrite("data", 1, 4, f);
+                w32(total * 2);
+                std::fwrite(pcm.data(), 2, pcm.size(), f);
+                std::fclose(f);
+            }
+            return 0;
+        }
+        if (!opl.open()) return 1;
+        Uint64 prev = SDL_GetPerformanceCounter();
+        const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
+        while (window.pollEvents() && window.lastKey() != SDL_SCANCODE_ESCAPE) {
+            const Uint64 now = SDL_GetPerformanceCounter();
+            player.update((now - prev) / freq);
+            prev = now;
+            SDL_Delay(5);
+        }
+        return 0;
+    }
 
     if (endStatus >= 0) {   // just the end-of-mission pictures
         runMissionEnd(window, missionPictures(static_cast<uint16_t>(endStatus), 0, static_cast<uint16_t>(deathCode)), shotEnd);

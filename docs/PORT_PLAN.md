@@ -30,18 +30,15 @@ Faithful port of the DOS game (MASM source in this repo) to C++17 / SDL2. Origin
     templates after it; the port only moves the 23. `bdest` in the original tests a flag left over from the
     caller; it is always clear there, so the port skips the test.
   - Quirks kept: `nflt` is never incremented in the original (so the flotsam cap never applies); the first
-    bullet record starts "live" and puffs once at its fixed spot.- **Phase 7 (part)** AdLib sound effects through ymfm.
+    bullet record starts "live" and puffs once at its fixed spot.- **Phase 7** AdLib sound effects through ymfm, and the music: `audio/RolPlayer` plays the original `.ROL` songs with\n  `CCMUSIC.BNK` instruments on the same OPL core (percussive rhythm voices included). Formats are documented in\n  its header; `test_rol` checks all three songs parse, every instrument resolves, and note pitches are right.\n  `--play-rol FILE.ROL` and `--wav-rol FILE.ROL out.wav seconds` are dev aids. Which song plays where comes with Phase 8.
 - **Extra** Xbox pad: dual-stick scheme for flying and for walking (strafe, look).
 
-## Remaining (next up: Phase 7 music, then Phase 8)
+## Remaining (next up: Phase 8)
 
 ### Step 0: verification setup (DONE, see the results at the end)
 - Install DOSBox and run the shipped `3.EXE` as a timing/behaviour reference.
 - Count the object types in the four shipped theaters (MORNING, DUSK, WHTSANDS, WASTELND) to rank which
   enemies a shareware mission uses.
-
-### Phase 7 remainder: music
-- ROL + BNK player for `CCMUSIC.BNK` / `*.ROL` (title and menu music) on the existing OPL core.
 
 ### Phase 8: recreated front end
 - MOAG-like menus: main menu, duty roster (`PILOT.HSC/SCR`), combat and training mission selection,
