@@ -307,8 +307,12 @@ void F3dVec::qcrash(u16 si) {
         SW(WALLDAMTICK, static_cast<i16>(now));
         cx = static_cast<u16>(cx + cx);
     }
-    if (B(REMOTEFLAG) == 0 && B(EJECTFLAG) != 0) SW(ARDVARK, W(si + 72));   // makeaboom
-    if (m_hooks) m_hooks->damageplane(cx);
+    const bool boom = B(REMOTEFLAG) == 0 && B(EJECTFLAG) != 0;   // makeaboom
+    if (boom) SW(ARDVARK, W(si + 72));
+    if (m_hooks) {
+        m_hooks->crashSound(boom);
+        m_hooks->damageplane(cx);
+    }
 }
 
 // ---- ground detail points (3.ASM's gscum segment, drawn by F3DVEC.ASM g3dobj) ----

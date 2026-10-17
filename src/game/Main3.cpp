@@ -85,6 +85,8 @@ bool Main3::pauseAndHelp() {
         SB(M3(helpreqflag), 0);
         SB(M3(curhelpindex), static_cast<u8>(d::m3_equ::mincurhelpindex));
         if (B(M3(groundflag)) == 0) SB(M3(curhelpindex), static_cast<u8>(d::m3_equ::mincurhelpindex + 1));   // skip the intro
+        voiceoff(0, 0x100);      // the engine and the blams fall silent
+        voiceoff(2, 0x10);
         drawbutton(0x0f07, 1);   // turn on the hold button
         drawbutton(0x0500, 1);
         m_holdColors = 0x070f;

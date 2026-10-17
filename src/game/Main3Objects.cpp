@@ -372,7 +372,11 @@ void Main3::getinplane(u16 si) {
     SW(M3(yawdoth), 0);
     SW(M3(thrdoth), 0);
     interiorview();   // put the instrument panel back on
-    if (W(M3(currpmx)) != 0) damageinit();   // re-init the damage and bomb displays
+    if (W(M3(currpmx)) != 0) {
+        if (m_snd) m_snd->snareinit();       // turn the missile sound back on
+        SB(M3(windflag), 0);                  // and the wind off
+        damageinit();                         // re-init the damage and bomb displays
+    }
     SB(M3(groundflag), 0xFF);
     SB(M3(flapflag), 0);          // flaps off
     SW(M3(rpm), 20);

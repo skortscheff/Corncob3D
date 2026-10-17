@@ -208,7 +208,8 @@ void Main3::drawWorld() {
 
         m_world.drawmemseg();
         if (m_eng.cecode != 0) return;   // emergency disengage
-        // (sound of the orb, the saucers and the KLAs: Phase 7)
+        orbAndSaucerSound();
+        klaSound();
         initnumbers();
         bulmov();
         m_world.expmovPrime();   // STRTEXP expmov, the priming half; the movement half is Phase 5
@@ -351,6 +352,7 @@ void Main3::engineThermo() {
     const u32 prod = mul16(q, static_cast<u16>(W(M3(thrtmult))));
     i16 ax = sub16(static_cast<i16>(prod >> 16), W(M3(opres)));
     SW(M3(opres), add16(W(M3(opres)), static_cast<i16>(ax / 40)));
+    engineSound();
 }
 
 // ==========================================================================================
@@ -412,7 +414,7 @@ void Main3::groundAndCrash() {
         const i16 sum = add16(abs16(y), abs16(x));
         SW(M3(crshvel), sum);
         if (!(static_cast<u16>(sum) > 200)) {
-            // (turn off the scrape noise: Phase 7)
+            adlwrt(0xBD, 0x20);                  // turn off the scrape noise
             SW(M3(brdrcnt), 0);                  // stop the plane from shaking
             SB(M3(freezeflag), 0xFF);            // stop motion of the plane
             SW(M3(currpmx), 0);                  // kill the throttle
@@ -700,6 +702,8 @@ void Main3::getBackIntoPlane() {
     interiorview();
     SB(M3(redamageflag), 0xFF);
     if (UW(M3(totaldamage)) == 0) SB(M3(redamageflag), 0);   // no damage: start fresh
+    if (m_snd) m_snd->snareinit();   // turn the missile sound back on
+    SB(M3(windflag), 0);              // the wind off
     damageinit();
     redrawbuts();
     for (int k = 0; k < 9; k++) SW(M3(ox) + 2 * k, W(si + 2 * k));   // move us to the plane's orientation

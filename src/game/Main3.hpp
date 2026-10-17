@@ -17,6 +17,7 @@
 // the 16-bit difference, and dword pairs (pitdotl/pitdoth ...) are 32-bit values split in two words.
 
 #pragma once
+#include "audio/Sound.hpp"
 #include "core/SasLib.hpp"
 #include "engine/F3dVec.hpp"
 #include "game/GameState.hpp"
@@ -67,6 +68,10 @@ public:
     // GameHooks (called by the engine)
     void objroutine(u16 type, u16 si, u16 di, bool carry) override;
     void damageplane(u16 count) override;
+    void crashSound(bool boom) override;
+
+    // The AdLib sound; without it the game is silent
+    void setSound(Sound* s) { m_snd = s; }
 
 private:
     // ---- DGROUP access ----
@@ -196,6 +201,17 @@ private:
     void flasheject();
     void flashstall();
 
+    // ---- sound (ADL.ASM does the chip work) ----
+    void voiceon(u8 voice, u16 ax) { if (m_snd) m_snd->voiceon(voice, ax); }
+    void voiceoff(u8 voice, u16 ax) { if (m_snd) m_snd->voiceoff(voice, ax); }
+    void adlwrt(u8 reg, u8 value) { if (m_snd) m_snd->adlwrt(reg, value); }
+    void orbAndSaucerSound();
+    void klaSound();
+    void engineSound();
+    void makeboom();
+    void bigboom();
+    void soundToggle();
+
     // ---- hooks owned by later phases ----
     void bulstrt() {}                         // Phase 5
     bool strtmis() { return true; }           // Phase 5 (true = failed)
@@ -210,6 +226,7 @@ private:
     DosKeyboard& m_kbd;
     TickClock& m_clock;
     Instruments& m_inst;
+    Sound* m_snd = nullptr;
     sas::Random m_rand;
     std::function<void(bool)> m_viewChanged;
     std::function<void(int)> m_showImage;

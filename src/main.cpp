@@ -8,6 +8,8 @@
 // front end come in later phases.
 
 #include "assets/Assets.hpp"
+#include "audio/Opl.hpp"
+#include "audio/Sound.hpp"
 #include "core/AsmMath.hpp"
 #include "engine/AsmTables.hpp"
 #include "engine/F3dVec.hpp"
@@ -105,6 +107,7 @@ int main(int argc, char* argv[]) {
     // --screenshot <file.bmp>: skip the intro, run the game for --frames frames, save one, exit
     // --shot-intro <prefix>:   run intro + loading screen unattended, save one BMP per scene, exit
     // --skip-intro:            go straight to the loading screen and game
+    // --nosound:               no AdLib sound
     // --hd <n>:                start at n x 640x350 (HD mode)
     // --theater <name>:        DEF/<name>.CCT + .TWR to fly over (WHTSANDS, DUSK, MORNING, WASTELND)
     // --frames <n>:            frames to run before the screenshot (default 8)
@@ -115,6 +118,7 @@ int main(int argc, char* argv[]) {
     const char* theater = "MORNING";
     const char* keyscript = nullptr;
     bool skipIntro = false;
+    bool noSound = false;
     int hd = 1;
     int shotFrames = 8;
     int fps = 20;   // game frames per second (the original: 10-20, depending on the machine)
@@ -123,6 +127,7 @@ int main(int argc, char* argv[]) {
         else if (std::strcmp(argv[i], "--theater") == 0 && i + 1 < argc) theater = argv[++i];
         else if (std::strcmp(argv[i], "--shot-intro") == 0 && i + 1 < argc) introShots = argv[++i];
         else if (std::strcmp(argv[i], "--skip-intro") == 0) skipIntro = true;
+        else if (std::strcmp(argv[i], "--nosound") == 0) noSound = true;
         else if (std::strcmp(argv[i], "--hd") == 0 && i + 1 < argc) hd = std::clamp(std::atoi(argv[++i]), 1, 4);
         else if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) shotFrames = std::max(1, std::atoi(argv[++i]));
         else if (std::strcmp(argv[i], "--fps") == 0 && i + 1 < argc) fps = std::clamp(std::atoi(argv[++i]), 5, 60);
@@ -166,8 +171,12 @@ int main(int argc, char* argv[]) {
     eng.readcolors();
     eng.setcolors(255);
 
+    Opl opl;                         // the AdLib card
+    Sound sound(gs, opl);
+    if (!noSound && opl.open()) sound.initsound(assetPath("3.ADL"));
     game::Instruments instruments(gs, eng, screen, clock);
     game::Main3 game(gs, eng, world, keyboard, clock, instruments);
+    if (opl.isOpen()) game.setSound(&sound);
     game.onViewChange([&](bool cockpit) {
         if (cockpit && havePanel) screen.drawPanel(panel, 0);   // readimg: the instrument panel
     });

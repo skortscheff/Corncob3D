@@ -197,7 +197,15 @@ void Main3::qcrashland() {
     }
     SW(M3(rpm), 20);
     if (W(M3(currpmx)) == 0) return;   // don't bother if already crashed
-    // (scraping sounds: Phase 7)
+    if (m_snd) {                       // the scraping of the belly, a screech and a blam
+        m_snd->scrapeinit();
+        SB(M3(windflag), 0);
+        m_snd->snaresnd();
+        voiceon(3, 0x300);
+        m_snd->b3laminit();
+        voiceoff(2, 0x10);
+        voiceon(2, 0x10);
+    }
     SW(M3(currpmx), 0);                // kill the throttle during the crash landing
 }
 

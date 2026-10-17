@@ -46,6 +46,7 @@ public:
     virtual ~GameHooks() = default;
     virtual void objroutine(u16 type, u16 si, u16 di, bool carry) = 0;
     virtual void damageplane(u16 count) = 0;
+    virtual void crashSound(bool boom) { (void)boom; }   // qcrash: a blam, or a boom when out of the plane
 };
 
 class F3dVec {

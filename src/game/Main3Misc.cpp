@@ -94,6 +94,8 @@ void Main3::propAndWeapons() {
     }
     if (wantBullet && !(UW(M3(bulavg)) > 32)) {   // 32 bullets out?
         SB(M3(homelandflag), 0);
+        voiceoff(1, 0x200);   // the bullet sound
+        voiceon(1, 0x200);
         bulstrt();
     }
 
@@ -104,6 +106,7 @@ void Main3::propAndWeapons() {
             if (!(UW(M3(misavg)) > 16) && B(M3(crshlndflag)) == 0) {
                 SB(M3(homelandflag), 0);
                 bool ok = B(M3(ejectflag)) == 0 || B(M3(remoteflag)) != 0;   // out of the plane needs the caps lock
+                if (ok && m_snd) m_snd->snaresnd();   // a missile sound
                 if (ok && !strtmis()) SW(M3(misavg), add16(W(M3(misavg)), 5));
             }
         }
@@ -112,7 +115,7 @@ void Main3::propAndWeapons() {
     // ---- sound toggle ----
     if (scnIs(0x1F)) {   // 's'
         clearScn();
-        SB(M3(sndflg), static_cast<u8>(B(M3(sndflg)) ^ 0xFF));
+        soundToggle();
     }
     if (scnIs(0x0A)) SB(M3(cheatflag), 0xFF);   // '9' (testerflag)
 
@@ -298,7 +301,13 @@ void Main3::miscKeys() {
 // 10905-11050: ejecting (also how the plane is parked when the mission ends)
 // ==========================================================================================
 void Main3::eject() {
-    // (the sounds off, the wind on: Phase 7)
+    voiceoff(0, 0x100);   // the engine, the blams and the alarms off, the wind on
+    voiceoff(2, 0x10);
+    voiceoff(5, 0x200);
+    voiceoff(2, 0x200);
+    voiceoff(3, 0x200);
+    SB(M3(windflag), 1);
+    if (m_snd) m_snd->windinit();
     SW(M3(ammoleft), 20);          // twenty shots of ammo is all we can carry
     SB(M3(abombsleft), 1);         // an assassin bomb
     SB(M3(numlock), 0);            // turn views off
@@ -438,6 +447,10 @@ bool Main3::finishMission() {
         m_eng.drawnear();           // sort and farm once more
     }
     SW(M3(score), static_cast<i16>(m_clock.frmticks));   // the speed info
+    if (m_snd) {
+        m_snd->soundoff();
+        m_snd->adlreginit();   // shut the sound board down
+    }
     m_done = true;
     return false;
 }
@@ -448,7 +461,17 @@ void Main3::crash() {
         resetplane();
         return;
     }
-    // (sound, the red crash screen)
+    if (m_snd) {   // scraping, the big boom, a screech and a blam
+        m_snd->scrapeinit();
+        SB(M3(windflag), 0);
+        m_snd->snaresnd();
+        voiceon(4, 0x10);
+        voiceon(3, 0x300);
+        voiceoff(2, 0x300);
+        m_snd->b3laminit();
+        voiceon(2, 0x10);
+    }
+    // (the red crash screen: Phase 8)
     SW(M3(missionstatus), static_cast<i16>(UW(M3(missionstatus)) & 0xFFFE));   // clear the abort bit
     SW(M3(missionstatus), static_cast<i16>(UW(M3(missionstatus)) | 2));        // set the killed bit
     SW(M3(nplaneslost), add16(W(M3(nplaneslost)), 1));

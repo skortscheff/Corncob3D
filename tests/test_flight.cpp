@@ -5,13 +5,17 @@
 #include "DGroup.hpp"
 #include "engine/F3dVec.hpp"
 #include "game/GameState.hpp"
+#include "audio/Opl.hpp"
+#include "audio/Sound.hpp"
 #include "game/Inst.hpp"
 #include "game/Keyboard.hpp"
 #include "game/Main3.hpp"
 #include "game/TickClock.hpp"
 #include "game/World.hpp"
 #include "render/EgaScreen.hpp"
+#include <cmath>
 #include <cstdio>
+#include <vector>
 #include <string>
 
 #ifndef CORNCOB_ASSET_DIR
@@ -50,6 +54,8 @@ struct Run {
     game::World world{gs, eng};
     game::Instruments inst{gs, eng, scr, clock};
     game::Main3 game{gs, eng, world, kbd, clock, inst};
+    Opl opl;
+    Sound snd{gs, opl};
     bool ok = false;
 
     explicit Run(const char* theater) {
@@ -57,6 +63,8 @@ struct Run {
         ok = world.readunivfile(def(theater, "TWR"), def(theater, "CCT"));
         if (!ok) return;
         eng.readcolors();
+        snd.initsound(std::string(CORNCOB_ASSET_DIR) + "/3.ADL");
+        game.setSound(&snd);
         game.startUp(true);
     }
 
@@ -113,6 +121,13 @@ int main(int, char**) {
         CHECK(r.gs.dw(d::m3::ox + 8) > 3000);           // and climbing
         CHECK(r.gs.w(d::m3::topv) > 5000);              // faster than 150 mph
         CHECK(r.gs.w(d::m3::orvec + 2) < 0);            // nose up
+        // the engine is on the chip: the throttle is up, so a note is playing
+        std::vector<int16_t> buf(6000);
+        r.opl.render(buf.data(), 3000);   // the attack
+        r.opl.render(buf.data(), 6000);
+        double s = 0;
+        for (int16_t v : buf) s += static_cast<double>(v) * v;
+        CHECK(std::sqrt(s / 6000) > 30.0);
     }
 
     // The same takeoff with the back stick on an Xbox controller instead of the key
