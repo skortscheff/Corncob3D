@@ -133,6 +133,8 @@ add_executable(test_theaters tests/test_theaters.cpp src/game/TheaterFiles.cpp)
 target_include_directories(test_theaters PRIVATE src/)
 target_compile_definitions(test_theaters PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
 add_test(NAME theaters COMMAND test_theaters)
+add_test(NAME frontend COMMAND ${CMAKE_COMMAND} -DEXE=$<TARGET_FILE:corncob3d> -DSAVE=${CMAKE_BINARY_DIR}/frontend_test_save -P ${CMAKE_SOURCE_DIR}/tests/frontend_flow.cmake
+                  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 if(WIN32)
     # Windowed app (no console) in release; keep the console in debug for logging

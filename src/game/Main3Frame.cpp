@@ -89,14 +89,18 @@ void Main3::startUp(bool readFile) {
     m_eng.ncalcmat(static_cast<u16>(M3(zmat)));
 
     if (readFile && B(M3(actionflag)) == 0) {
-        // (3.ASM icaresreaduniv) start on foot next to the airstrip
         for (int k = 0; k < 6; k++) SW(M3(ox) + 2 * k, W(M3(startcoords) + 2 * k));
-        SD(M3(oy), sub32(D(M3(oy)), 3000));
-        SB(M3(ejectflag), 0xFF);
-        SB(M3(standingflag), 0xFF);
-        SW(M3(obj5d) + 24, 0);   // make sure that image is off
-        fullsize();
-        SB(M3(numlock), 0);      // default is views off
+        if (B(M3(chainflag)) != 0) {   // an extra plane was asked for (-h): start in an old one
+            SB(M3(newguyflag), 0);     // don't count as a new guy
+            SW(M3(obj5dbits), static_cast<i16>(UW(M3(obj5dbits)) | 0x1000));   // the dumpy plane bit
+        } else {   // (3.ASM icaresreaduniv) start on foot next to the airstrip
+            SD(M3(oy), sub32(D(M3(oy)), 3000));
+            SB(M3(ejectflag), 0xFF);
+            SB(M3(standingflag), 0xFF);
+            SW(M3(obj5d) + 24, 0);   // make sure that image is off
+            fullsize();
+            SB(M3(numlock), 0);      // default is views off
+        }
     } else {
         SB(M3(newguyflag), 0);
         initperms();   // the runway, the tower and the rest of the permanent objects
