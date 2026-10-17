@@ -27,6 +27,13 @@ public:
     bool joystickButton(int btn) const { return (btn >= 0 && btn < 4) ? m_buttons[btn] : false; }
     bool hasJoystick() const { return m_joy != nullptr; }
 
+    // Xbox-style game controller (SDL maps most pads to this layout). Opened on demand, so a
+    // pad plugged in later is picked up too. Sticks are in [-1, 1] after a radial dead zone,
+    // triggers in [0, 1].
+    bool hasGamepad() const { return m_pad != nullptr; }
+    float padAxis(SDL_GameControllerAxis a) const { return m_padAxis[a]; }
+    bool padButton(SDL_GameControllerButton b) const { return m_padButtons[b]; }
+
 private:
     std::array<bool, SDL_NUM_SCANCODES> m_keys{};
     std::array<bool, SDL_NUM_SCANCODES> m_prevKeys{};
@@ -34,6 +41,11 @@ private:
     SDL_Joystick* m_joy = nullptr;
     float m_axis[4] = {};
     bool m_buttons[4] = {};
+
+    SDL_GameController* m_pad = nullptr;
+    float m_padAxis[SDL_CONTROLLER_AXIS_MAX] = {};
+    bool m_padButtons[SDL_CONTROLLER_BUTTON_MAX] = {};
+    int m_padCheck = 0;
 };
 
 } // namespace corncob

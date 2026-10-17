@@ -61,6 +61,44 @@ std::vector<ScriptEvent> parseScript(const char* s) {
     return out;
 }
 
+// Xbox controller: the left stick is the flight stick, the right stick the rudder (and on foot,
+// running); the buttons press the keys of the original, so a button does what its key does.
+//   left stick   roll / pitch (pull back = nose up); on foot: turn and look
+//   right stick  rudder left/right; on foot: up = run forward, down = step back
+//   RT / LT      throttle up / down        D-pad up / down: the same
+//   A guns   X missiles   B bomb   Y flaps   LB brakes   RB autopilot
+//   D-pad left   rear window     D-pad right   ground detail dots
+//   Back eject (when out in the air, left stick click pulls the ripcord)   Start pause
+void updatePad(const Input& in, DosKeyboard& kbd, game::Main3& game, GameState& gs) {
+    static bool held[32] = {};
+    auto key = [&](int slot, bool down, uint8_t code) {
+        if (down != held[slot]) {
+            held[slot] = down;
+            kbd.key(code, down, 0);
+        }
+    };
+    const bool pad = in.hasGamepad();
+    auto axis = [&](SDL_GameControllerAxis a) { return pad ? in.padAxis(a) : 0.0f; };
+    auto btn = [&](SDL_GameControllerButton b) { return pad && in.padButton(b); };
+    game.setPad(pad, axis(SDL_CONTROLLER_AXIS_LEFTX), axis(SDL_CONTROLLER_AXIS_LEFTY), axis(SDL_CONTROLLER_AXIS_RIGHTX));
+    const bool onFoot = gs.b(d::m3::ejectflag) != 0;
+    key(0, axis(SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 0.3f || btn(SDL_CONTROLLER_BUTTON_DPAD_UP), 0x4E);      // throttle +
+    key(1, axis(SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 0.3f || btn(SDL_CONTROLLER_BUTTON_DPAD_DOWN), 0x4A);     // throttle -
+    key(2, btn(SDL_CONTROLLER_BUTTON_A), 0x39);                                                              // space: guns
+    key(3, btn(SDL_CONTROLLER_BUTTON_X), 0x2E);                                                              // c: missiles
+    key(4, btn(SDL_CONTROLLER_BUTTON_B), 0x30);                                                              // b: bomb
+    key(5, btn(SDL_CONTROLLER_BUTTON_Y), 0x21);                                                              // f: flaps
+    key(6, btn(SDL_CONTROLLER_BUTTON_LEFTSHOULDER), 0x34);                                                   // .: brakes
+    key(7, btn(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER), 0x1E);                                                  // a: autopilot
+    key(8, btn(SDL_CONTROLLER_BUTTON_DPAD_LEFT), 0x13);                                                      // r: rear window
+    key(9, btn(SDL_CONTROLLER_BUTTON_DPAD_RIGHT), 0x22);                                                     // g: ground dots
+    key(10, btn(SDL_CONTROLLER_BUTTON_BACK), 0x12);                                                          // e: eject / step out
+    key(11, btn(SDL_CONTROLLER_BUTTON_LEFTSTICK), 0x39);                                                     // space: ripcord
+    key(12, btn(SDL_CONTROLLER_BUTTON_START), 0x19);                                                         // p: pause
+    key(13, onFoot && axis(SDL_CONTROLLER_AXIS_RIGHTY) < -0.5f, 0x4C);                                       // run forward
+    key(14, onFoot && axis(SDL_CONTROLLER_AXIS_RIGHTY) > 0.5f, 0x52);                                        // step back
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -173,6 +211,7 @@ int main(int argc, char* argv[]) {
             scriptPos++;
         }
         input.update();
+        updatePad(input, keyboard, game, gs);
         if (input.isKeyJustDown(SDL_SCANCODE_F11)) {
             // HD toggle: 1x <-> 2x, panel redrawn into the new pages
             screen.setScale(screen.scale() == 1 ? 2 : 1);

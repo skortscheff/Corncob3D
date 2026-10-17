@@ -46,6 +46,16 @@ public:
     bool frame();
 
     bool done() const { return m_done; }
+
+    // An analog controller, each in [-1, 1]: roll and pitch (down = nose up) take the place of
+    // the joystick the original read, rudder is added to the rudder keys. Used only while no
+    // arrow key is down, as in the original's joytd.
+    void setPad(bool active, float roll, float pitch, float rudder) {
+        m_padActive = active;
+        m_padRoll = roll;
+        m_padPitch = pitch;
+        m_padRudder = rudder;
+    }
     bool paused() const { return m_paused; }
 
     // Told when the window layout changes: true = the cockpit with the instrument panel,
@@ -204,6 +214,8 @@ private:
     std::function<void(bool)> m_viewChanged;
     std::function<void(int)> m_showImage;
     u16 m_holdColors = 0;
+    bool m_padActive = false;
+    float m_padRoll = 0, m_padPitch = 0, m_padRudder = 0;
 
     static constexpr int GNPTS = engine::F3dVec::GNPTS;
     bool m_done = false;

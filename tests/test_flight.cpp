@@ -60,9 +60,14 @@ struct Run {
         game.startUp(true);
     }
 
+    // Analog stick: pitch (down = nose up) between these frames
+    int padFrom = -1, padTo = -1;
+    float padPitch = 0;
+
     void fly(int frames, const std::vector<Key>& keys) {
         size_t next = 0;
         for (int f = 0; f < frames && !game.done(); f++) {
+            game.setPad(f >= padFrom && f < padTo, 0, padPitch, 0);
             const int slow = clock.advance(0.05);
             for (int i = 0; i < slow; i++) {
                 if (gs.uw(d::m3::bultick)) gs.setW(d::m3::bultick, static_cast<int16_t>(gs.w(d::m3::bultick) - 1));
@@ -108,6 +113,19 @@ int main(int, char**) {
         CHECK(r.gs.dw(d::m3::ox + 8) > 3000);           // and climbing
         CHECK(r.gs.w(d::m3::topv) > 5000);              // faster than 150 mph
         CHECK(r.gs.w(d::m3::orvec + 2) < 0);            // nose up
+    }
+
+    // The same takeoff with the back stick on an Xbox controller instead of the key
+    {
+        Run r("MORNING");
+        CHECK(r.ok);
+        r.padFrom = 270;
+        r.padTo = 286;
+        r.padPitch = 1.0f;
+        r.fly(500, {{4, true, 0x4E}, {20, false, 0x4E}});
+        CHECK(!r.game.done());
+        CHECK(r.gs.b(d::m3::groundflag) == 0);
+        CHECK(r.gs.dw(d::m3::ox + 8) > 3000);
     }
 
     // Eject in the air: out of the plane, the parachute opens, and the man lands standing

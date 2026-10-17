@@ -76,6 +76,10 @@ void Main3::joytd(i16& ax, i16& bx) {
         const i16 down = static_cast<i16>(m_kbd.scalekey(0x50, cx));
         bx = add16(neg16(up), down);
     }
+    if (m_padActive && ax == 0 && bx == 0) {   // no arrow keys: the analog stick (the joystick path)
+        ax = static_cast<i16>(m_padRoll * 0x200);
+        bx = static_cast<i16>(m_padPitch * 0x200);
+    }
     ax = add16(ax, 0x200);
     bx = add16(bx, 0x200);
 }
@@ -231,6 +235,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
         di = add16(di, neg16(static_cast<i16>(m_kbd.scalekey(0x2D, cx))));   // x
         di = add16(di, static_cast<i16>(m_kbd.scalekey(0x47, cx)));          // home / keypad 7
         di = add16(di, neg16(static_cast<i16>(m_kbd.scalekey(0x49, cx))));   // pgup / keypad 9
+        if (m_padActive) di = bndck(add16(di, static_cast<i16>(m_padRudder * 0x200)), 0x400, -0x400);
         rudder = di;
     }
     SW(M3(rdrang), rudder);
