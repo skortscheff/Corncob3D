@@ -200,18 +200,18 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
         const i32 r3 = static_cast<i32>(static_cast<u32>(R) * 3u);
         const i32 half = r3 >> 1;
         const i32 num = sub32(v, half);
-        dwAdd(M3(thrdotl), M3(thrdoth), sas::divrs_dw(num, W(M3(thrmi))));
+        dwAdd(M3(thrdotl), M3(thrdoth), frameScale(sas::divrs_dw(num, W(M3(thrmi)))));
     }
     if (W(M3(thrdam)) != 0) {   // wing damage: a roll that fades out with airspeed
         i32 v = damageWide(W(M3(thrdam)), 3);
         v = sas::muls_dw(v, vpxp);
         v = sas::divs_dw(v, 300);
-        dwAdd(M3(thrdotl), M3(thrdoth), v);
+        dwAdd(M3(thrdotl), M3(thrdoth), frameScale(v));
     }
     if (B(M3(autoflag)) != 0) {   // autopilot levels the wings
         i16 ax = neg16(W(M3(orveceff) + 4));   // look at roll, reverse feedback
         ax = bndck(ax, 25, -25);               // maximum autopilot adjust rate
-        dwAdd(M3(thrdotl), M3(thrdoth), dupShiftRight(ax, 2));
+        dwAdd(M3(thrdotl), M3(thrdoth), frameScale(dupShiftRight(ax, 2)));
     }
 
     // ---- side wind: the angle of the side velocity limits how far the weathercock effect goes ----
@@ -247,13 +247,13 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
         v = sub32(v, dwGet(M3(yawdotl), M3(yawdoth)));            // exponential fall off
         v = add32(v, dwGet(M3(ctydotl), M3(ctydoth)));            // side wind
         v = add32(v, imul16(neg16(W(M3(sidef))), 1053));          // weathercock effect
-        dwAdd(M3(yawdotl), M3(yawdoth), sas::divrs_dw(v, W(M3(yawmi))));
+        dwAdd(M3(yawdotl), M3(yawdoth), frameScale(sas::divrs_dw(v, W(M3(yawmi)))));
     }
     if (W(M3(yawdam)) != 0) {
         i32 v = damageWide(W(M3(yawdam)), 3);
         v = sas::muls_dw(v, vpxp);
         v = sas::divs_dw(v, 300);
-        dwAdd(M3(yawdotl), M3(yawdoth), v);
+        dwAdd(M3(yawdotl), M3(yawdoth), frameScale(v));
     }
     // turning correction for auto-ruddering turns
     {
@@ -262,7 +262,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
         const i16 ctopv = W(M3(ctopv));
         if (!(ctopv < 30)) {                                 // don't carry to extreme low speed
             const i32 v = static_cast<i32>(static_cast<u32>(static_cast<u16>(h2)) << 16);
-            dwAdd(M3(yawdotl), M3(yawdoth), sas::divrs_dw(v, neg16(ctopv)));
+            dwAdd(M3(yawdotl), M3(yawdoth), frameScale(sas::divrs_dw(v, neg16(ctopv))));
         }
     }
 
@@ -272,7 +272,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
         i32 v = imul16(q, vpxp);
         v = sas::muls_dw(v, W(M3(pitsf)));
         v = sub32(v, dwGet(M3(pitdotl), M3(pitdoth)));   // exponential fall off
-        dwAdd(M3(pitdotl), M3(pitdoth), sas::divrs_dw(v, W(M3(pitmi))));
+        dwAdd(M3(pitdotl), M3(pitdoth), frameScale(sas::divrs_dw(v, W(M3(pitmi)))));
     }
     // (simpflag: "if aeroflag and not stalled call pitchlock" - aeroflag is the -y option, off)
     if (B(M3(aeroflag)) != 0 && B(M3(qstald)) == 0) pitchlock();
@@ -287,7 +287,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
             const i16 absr = abs16(r);
             i32 p = imul16(absr, r);              // |r| * r
             p = imul16(lo16(p), 20);              // imul bx on the low word only
-            dwAdd(M3(pitdotl), M3(pitdoth), add32(p, A));
+            dwAdd(M3(pitdotl), M3(pitdoth), frameScale(add32(p, A)));
             dohlock();
             SW(M3(oldzvel), W(M3(topv) + 4));
         }
@@ -299,7 +299,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
         i16 ax = abs16(W(M3(topv)));
         if (static_cast<u16>(ax) > 2821) {   // control: more than a roll's worth of speed
             ax = neg16(sub16(ax, 2821));
-            dwAdd(M3(pitdotl), M3(pitdoth), sal32(cwd(ax), 5));
+            dwAdd(M3(pitdotl), M3(pitdoth), frameScale(sal32(cwd(ax), 5)));
         } else {                              // stillrol: remove control of the user below this speed
             i16 a = sub16(W(M3(orveceff) + 2), W(M3(pitchmin)));
             const u8 al = static_cast<u8>(a & 0xFF), ah = static_cast<u8>((static_cast<u16>(a) >> 8) & 0xFF);
@@ -337,7 +337,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
     }
     // inair:
     if (B(M3(groundflag)) == 0 && B(M3(qstald)) != 0) {   // stalled: the nose drops
-        dwAdd(M3(pitdotl), M3(pitdoth), sal32(cwd(W(M3(topv) + 4)), 7));
+        dwAdd(M3(pitdotl), M3(pitdoth), frameScale(sal32(cwd(W(M3(topv) + 4)), 7)));
     }
     if (B(M3(groundflag)) == 0) {
         const u32 p1 = mul16(static_cast<u16>(W(M3(thstal))), 58000);
@@ -379,17 +379,19 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
         for (u32 off : {static_cast<u32>(M3(pitdoth)), static_cast<u32>(M3(yawdoth)), static_cast<u32>(M3(thrdoth))}) {
             i16 n = static_cast<i16>(m_rand.randr_w(range));
             n = sub16(n, static_cast<i16>(range >> 1));            // make it symmetric
-            SW(off, add16(W(off), n));
+            SW(off, add16(W(off), static_cast<i16>(frameScale(n))));
         }
     }
 
     // ---- the rates become a rotation of zmat ----
+    // (the rates are 16.16: the whole part used to be scaled by the frame time and the fraction thrown away, which at a
+    // short frame turned a slow rate into no turn at all; now the whole dword is scaled and the remainder carried)
     SW(M3(pitdoth), bndck(W(M3(pitdoth)), 3000, -3000));
-    const i16 pitchRate = wtadj(neg16(W(M3(pitdoth))));
+    const i16 pitchRate = takeWhole(-dwtadjWide(dwGet(M3(pitdotl), M3(pitdoth))), m_angFrac[0]);
     SW(M3(yawdoth), bndck(W(M3(yawdoth)), 3000, -3000));
-    const i16 yawRate = wtadj(W(M3(yawdoth)));
+    const i16 yawRate = takeWhole(dwtadjWide(dwGet(M3(yawdotl), M3(yawdoth))), m_angFrac[1]);
     SW(M3(thrdoth), bndck(W(M3(thrdoth)), 3000, -3000));
-    const i16 rollRate = wtadj(W(M3(thrdoth)));
+    const i16 rollRate = takeWhole(dwtadjWide(dwGet(M3(thrdotl), M3(thrdoth))), m_angFrac[2]);
     m_eng.rolpln(rollRate, pitchRate, yawRate, static_cast<u16>(M3(zmat)));
 
     // the angles back out of the matrix
@@ -424,7 +426,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
 // 8796-9141: velocity in the plane's frame, gravity, thrust, drag, lift, and the new velocity
 // ==========================================================================================
 void Main3::forcesAndVelocity() {
-    m_eng.matvmul(static_cast<u16>(M3(rtopv)), static_cast<u16>(M3(nzmat)), static_cast<u16>(M3(topv)));
+    velmul(static_cast<u16>(M3(rtopv)), static_cast<u16>(M3(nzmat)), static_cast<u16>(M3(topv)));
     for (int k = 0; k < 3; k++) SW(M3(ctopv) + 2 * k, sar16(W(M3(topv) + 2 * k), 4));
 
     const u16 nz = static_cast<u16>(M3(nzmat));
@@ -573,25 +575,25 @@ void Main3::forcesAndVelocity() {
     // apply delta-v to topv, then rotate back to the rtopv frame. Only the high word of the
     // frame-time scaled dword is the velocity change.
     {
-        i16 dx = hi16(dwtadj(D(M3(dvel))));
+        i16 dx = takeWhole(dwtadjWide(D(M3(dvel))), m_velFrac[0]);
         SW(M3(topv), add16(W(M3(topv)), dx));
         SW(M3(acctop), dx);   // keep track of the acceleration
 
-        dx = hi16(dwtadj(D(M3(dvel) + 4)));
+        dx = takeWhole(dwtadjWide(D(M3(dvel) + 4)), m_velFrac[1]);
         i16 ax = W(M3(topv) + 2);
         SW(M3(acctop) + 2, dx);
         if (dx == 0 && static_cast<u16>(abs16(ax)) <= 200) ax = 0;   // sideslip fix
         ax = add16(ax, dx);
         SW(M3(topv) + 2, bndck(ax, 9500, -9500));
 
-        const i32 s = dwtadj(D(M3(dvel) + 8));
-        dx = hi16(s);
+        const i32 s = dwtadjWide(D(M3(dvel) + 8));
+        dx = takeWhole(s, m_velFrac[2]);
         SW(M3(acctop) + 4, dx);
         SW(M3(y1temp), lo16(s));
         SW(M3(topv) + 4, bndck(add16(W(M3(topv) + 4), dx), 9600, -9600));
     }
-    m_eng.matvmul(static_cast<u16>(M3(acctop)), static_cast<u16>(M3(nnzmat)), static_cast<u16>(M3(racctop)));
-    m_eng.matvmul(static_cast<u16>(M3(topv)), static_cast<u16>(M3(nnzmat)), static_cast<u16>(M3(rtopv)));
+    velmul(static_cast<u16>(M3(acctop)), static_cast<u16>(M3(nnzmat)), static_cast<u16>(M3(racctop)));
+    velmul(static_cast<u16>(M3(topv)), static_cast<u16>(M3(nnzmat)), static_cast<u16>(M3(rtopv)));
 }
 
 } // namespace corncob::game

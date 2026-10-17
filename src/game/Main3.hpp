@@ -111,6 +111,16 @@ private:
     i16 wtadj(i16 v) const;
     i16 uwtadj(i16 v) const;
     i32 dwtadj(i32 v) const;
+    // dwtadj without the 32-bit overflow of the original (a rate of 3000 in 16.16 times a frame of 400 ticks), rounded
+    i32 dwtadjWide(i32 v) const;
+    // a per-frame change written for the 20 fps frame, made for the frame that is really being run
+    i32 frameScale(i32 v) const;
+    // The whole part of a 16.16 amount with the fraction carried to the next frame: the original dropped it every frame, which
+    // at a short frame was as large as the amount itself
+    static i16 takeWhole(i32 value, u16& frac);
+    // A 1.15 matrix times a velocity vector, rounded to nearest (the matvmul of the engine floors every product and
+    // drops the low bit of every sum, a loss of several units a frame that does not shrink with the frame time)
+    void velmul(u16 si, u16 bx, u16 di);
 
     bool key(u8 scan) const { return m_kbd.getkbit(scan) != 0; }
     u8 scncode() const { return m_kbd.scncode(); }
@@ -356,6 +366,9 @@ private:
     bool m_done = false;
     bool m_paused = false;
     float m_strafe = 0;
+    u16 m_velFrac[3] = {0, 0, 0};   // fractions of a velocity unit carried between frames (the plane frame)
+    u16 m_angFrac[3] = {0, 0, 0};   // fractions of an angle unit: pitch, yaw, roll
+    i32 m_posFrac[3] = {0, 0, 0};   // the position bits shifted out each frame by moveme
     bool m_mapActive = false;    // maploop is running
     bool m_mapCockpit = false;   // it was started from the cockpit, which has to come back
 };

@@ -1,26 +1,8 @@
 // test_flight.cpp - Flies the ported main loop headless: takeoff, climb, eject, parachute
 // Needs the original DEF files (assets/original, never committed); skipped when missing.
 
-#define SDL_MAIN_HANDLED
-#include "DGroup.hpp"
-#include "engine/F3dVec.hpp"
-#include "game/GameState.hpp"
-#include "audio/Opl.hpp"
-#include "audio/Sound.hpp"
-#include "game/Inst.hpp"
-#include "game/Keyboard.hpp"
-#include "game/Main3.hpp"
-#include "game/TickClock.hpp"
-#include "game/World.hpp"
-#include "render/EgaScreen.hpp"
+#include "FlightRun.hpp"
 #include <cmath>
-#include <cstdio>
-#include <vector>
-#include <string>
-
-#ifndef CORNCOB_ASSET_DIR
-#define CORNCOB_ASSET_DIR "assets/original"
-#endif
 
 using namespace corncob;
 namespace d = corncob::dgroup;
@@ -33,62 +15,6 @@ static int failures = 0;
             failures++;                                                      \
         }                                                                    \
     } while (0)
-
-static std::string def(const char* name, const char* ext) {
-    return std::string(CORNCOB_ASSET_DIR) + "/DEF/" + name + "." + ext;
-}
-
-struct Key {
-    int frame;
-    bool down;
-    uint8_t code;
-};
-
-// Runs the game at 20 frames per second for `frames` frames with scripted keys
-struct Run {
-    GameState gs;
-    EgaScreen scr{1};
-    engine::F3dVec eng{gs, scr};
-    TickClock clock;
-    DosKeyboard kbd{gs, clock};
-    game::World world{gs, eng};
-    game::Instruments inst{gs, eng, scr, clock};
-    game::Main3 game{gs, eng, world, kbd, clock, inst};
-    Opl opl;
-    Sound snd{gs, opl};
-    bool ok = false;
-
-    explicit Run(const char* theater, bool training = false) {
-        world.cleanexp();
-        ok = training || world.readunivfile(def(theater, "TWR"), def(theater, "CCT"));
-        if (!ok) return;
-        eng.readcolors();
-        snd.initsound(std::string(CORNCOB_ASSET_DIR) + "/3.ADL");
-        game.setSound(&snd);
-        game.startUp(!training);
-    }
-
-    // Analog stick: pitch (down = nose up) between these frames
-    int padFrom = -1, padTo = -1;
-    float padPitch = 0;
-
-    void fly(int frames, const std::vector<Key>& keys) {
-        size_t next = 0;
-        for (int f = 0; f < frames && !game.done(); f++) {
-            game.setPad(f >= padFrom && f < padTo, 0, padPitch, 0);
-            const int slow = clock.advance(0.05);
-            for (int i = 0; i < slow; i++) {
-                if (gs.uw(d::m3::bultick)) gs.setW(d::m3::bultick, static_cast<int16_t>(gs.w(d::m3::bultick) - 1));
-                if (gs.uw(d::m3::mistick)) gs.setW(d::m3::mistick, static_cast<int16_t>(gs.w(d::m3::mistick) - 1));
-            }
-            while (next < keys.size() && keys[next].frame <= f) {
-                kbd.key(keys[next].code, keys[next].down);
-                next++;
-            }
-            game.frame();
-        }
-    }
-};
 
 int main(int, char**) {
     std::FILE* probe = std::fopen(def("MORNING", "CCT").c_str(), "rb");
@@ -305,7 +231,7 @@ int main(int, char**) {
         uint16_t slot = 0;
         spot(12000, 3000);
         CHECK(!r.world.strtaa(static_cast<uint16_t>(kbuf), 7));
-        spot(-12000, 3000);
+        spot(0, 16000);
         CHECK(!r.world.strtdbst(static_cast<uint16_t>(kbuf), 7));
         spot(14000, 8000);
         CHECK(!r.world.strtvest(static_cast<uint16_t>(kbuf), 7));

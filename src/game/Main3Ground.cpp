@@ -85,7 +85,7 @@ void Main3::brake(i16 force, u16& mag, i16& axOut) {
 // 3.ASM killss: kill the side slip
 void Main3::killss() {
     SW(M3(topv) + 2, 0);
-    m_eng.matvmul(static_cast<u16>(M3(topv)), static_cast<u16>(M3(nnzmat)), static_cast<u16>(M3(rtopv)));
+    velmul(static_cast<u16>(M3(topv)), static_cast<u16>(M3(nnzmat)), static_cast<u16>(M3(rtopv)));
 }
 
 // 3.ASM bouncevert: bounces the plane up when it hits the ground
@@ -312,8 +312,10 @@ void Main3::moveme() {
         i16 ax = W(M3(racctop) + 2 * k);   // acceleration
         ax = sar16(ax, 1);                  // /2 for 1/2 a t^2
         ax = add16(ax, W(M3(rtopv) + 2 * k));
-        i32 v = dwtadj(cwd(ax));
-        v = v >> cl;                        // divbycl: arithmetic shifts of dx:ax
+        // divbycl: arithmetic shifts of dx:ax; the bits shifted out go to the next frame
+        const i32 acc = dwtadjWide(cwd(ax)) + m_posFrac[k];
+        const i32 v = acc >> cl;
+        m_posFrac[k] = acc - (v << cl);
         addToDword(M3(ox) + 4 * k, v);
     }
 }

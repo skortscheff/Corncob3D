@@ -50,6 +50,38 @@ i32 Main3::dwtadj(i32 v) const {
     return sas::divrs_dw(sas::muls_dw(v, W(M3(ofrmticks))), W(M3(ticksf)));
 }
 
+i32 Main3::dwtadjWide(i32 v) const {
+    const i16 den = W(M3(ticksf));
+    if (den == 0) return v;
+    const int64_t num = static_cast<int64_t>(v) * W(M3(ofrmticks));
+    const int64_t half = den / 2;
+    const int64_t q = (num >= 0 ? num + half : num - half) / den;   // rounded to nearest
+    return static_cast<i32>(std::max<int64_t>(INT32_MIN, std::min<int64_t>(INT32_MAX, q)));
+}
+
+i32 Main3::frameScale(i32 v) const {
+    constexpr int64_t REF_TICKS = 58;   // the 20 fps frame
+    const int64_t num = static_cast<int64_t>(v) * W(M3(ofrmticks));
+    const int64_t q = (num >= 0 ? num + REF_TICKS / 2 : num - REF_TICKS / 2) / REF_TICKS;
+    return static_cast<i32>(std::max<int64_t>(INT32_MIN, std::min<int64_t>(INT32_MAX, q)));
+}
+
+i16 Main3::takeWhole(i32 value, u16& frac) {
+    const int64_t total = static_cast<int64_t>(value) + frac;
+    frac = static_cast<u16>(total & 0xFFFF);
+    const int64_t whole = total >> 16;
+    return static_cast<i16>(std::max<int64_t>(-32768, std::min<int64_t>(32767, whole)));
+}
+
+void Main3::velmul(u16 si, u16 bx, u16 di) {
+    for (int k = 0; k < 3; k++) {
+        int64_t sum = 0;
+        for (int j = 0; j < 3; j++) sum += static_cast<int64_t>(W(si + 2 * j)) * W(bx + 6 * k + 2 * j);
+        const int64_t r = (sum + 0x4000) >> 15;   // 1.15, rounded
+        SW(di + 2 * k, static_cast<i16>(std::max<int64_t>(-32767, std::min<int64_t>(32767, r))));
+    }
+}
+
 // ==========================================================================================
 // 3.ASM: the start of the loop (7060-7234)
 // ==========================================================================================
@@ -58,16 +90,20 @@ void Main3::timing() {
     SW(M3(nframes), add16(W(M3(nframes)), 1));
     u16 ax = m_clock.frmticks;
     if (W(M3(qtimeinc)) != 0) {   // forced mode: pretend oticks is running
-        ax = static_cast<u16>(W(M3(qtimeinc)));
+        ax = static_cast<u16>(W(M3(qtimeinc)) * 8);
         m_clock.oticks = static_cast<u16>(m_clock.oticks + ax);
     }
-    ax >>= 3;
-    const i16 t = bndck(static_cast<i16>(ax), W(M3(maxofrm)), W(M3(minofrm)));   // no zero, no huge frames
+    // The original measured a frame in units of 8 timer ticks (ofrmticks = frmticks >> 3, ticksf = 5). A frame of
+    // 16.7 ms is 2.4 such units, so at 60 frames a second that granularity ran the plane 18% slow and made the step
+    // jitter. Here the unit is one tick and ticksf is 8 times larger: the same scaling, with the resolution to match.
+    constexpr i16 TICKSF = 40;
+    SW(M3(ticksf), TICKSF);
+    const i16 t = bndck(static_cast<i16>(ax), static_cast<i16>(W(M3(maxofrm)) * 8), static_cast<i16>(W(M3(minofrm)) * 8));   // no zero, no huge frames
     SB(M3(advflag), 0);
     SW(M3(ofrmticks), t);
     SW(M3(realofrmticks), t);
     if (key(0x14)) {   // 't': accelerated time
-        SW(M3(ofrmticks), 50);
+        SW(M3(ofrmticks), 50 * 8);
         SB(M3(advflag), 0xFF);
     }
 }
