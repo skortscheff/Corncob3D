@@ -99,7 +99,7 @@ void Main3::startUp(bool readFile) {
         SB(M3(numlock), 0);      // default is views off
     } else {
         SB(M3(newguyflag), 0);
-        // (initperms and the runway start: Phase 5)
+        initperms();   // the runway, the tower and the rest of the permanent objects
         SD(M3(ox) + 4, sub32(D(M3(ox) + 4), 8000));
         SW(M3(ox) + 12, 0);
         recalcmats();
@@ -137,10 +137,15 @@ bool Main3::frame() {
     if (m_done) return false;
 
     timing();
+    if (m_mapActive) {   // maploop: the map takes the place of the whole frame
+        mapFrame();
+        return true;
+    }
     if (pauseAndHelp()) return true;   // paused: nothing moves, nothing is drawn
 
-    // 7259-7303: the map key. MAP.ASM's maploop (map mode) is ported with the views later.
-    if (scncode() == 0x32 + 0x80) clearScn();
+    // 7259-7303: the map key
+    mapRequest();
+    if (m_mapActive) return true;
 
     m_clock.frmticks = 0;
     m_clock.dticks = 0;
@@ -226,7 +231,18 @@ void Main3::drawWorld() {
 
     // 7824-7857: the plane seen from outside while remote controlling it
     if (B(M3(ejectflag)) != 0 && B(M3(remoteflag)) != 0) {
-        // (the tail window view of obj5d: ported with the views in Phase 4)
+        const u16 saved = UW(M3(ptrgwinf));
+        const u16 tail = static_cast<u16>(M3(gwinl));
+        SW(M3(ptrgwinf), static_cast<i16>(tail));
+        m_eng.eraseWin(tail);
+        SW(M3(xvec1), 7000);
+        SW(M3(xvec1) + 2, 0);
+        SW(M3(xvec1) + 4, 0);
+        m_eng.matvmul(static_cast<u16>(M3(xvec1)), static_cast<u16>(M3(norot)), static_cast<u16>(M3(xvec)));
+        m_eng.drawrdirect(static_cast<u16>(M3(obj5d)), tail);
+        SW(M3(ptrgwinf), static_cast<i16>(saved));
+        bool tooFar;
+        drawtodxvec(static_cast<u16>(M3(obj5d)), tooFar);   // dxvec now points away from the plane
     }
 
     // 7858-7895: halted by a death ball: the screen fades out while looking at it

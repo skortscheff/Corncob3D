@@ -58,14 +58,14 @@ struct Run {
     Sound snd{gs, opl};
     bool ok = false;
 
-    explicit Run(const char* theater) {
+    explicit Run(const char* theater, bool training = false) {
         world.cleanexp();
-        ok = world.readunivfile(def(theater, "TWR"), def(theater, "CCT"));
+        ok = training || world.readunivfile(def(theater, "TWR"), def(theater, "CCT"));
         if (!ok) return;
         eng.readcolors();
         snd.initsound(std::string(CORNCOB_ASSET_DIR) + "/3.ADL");
         game.setSound(&snd);
-        game.startUp(true);
+        game.startUp(!training);
     }
 
     // Analog stick: pitch (down = nose up) between these frames
@@ -153,6 +153,36 @@ int main(int, char**) {
         CHECK(r.gs.b(d::m3::standingflag) != 0);                 // down on his feet
         CHECK(r.gs.dw(d::m3::oz) == 720);                        // hmin above the ground
         CHECK((r.gs.uw(d::m3::missionstatus) & 0x20) != 0);      // ejected in the air
+    }
+
+    // Map mode: the m key goes full screen and looks down from high up; m again returns to the cockpit
+    {
+        Run r("MORNING");
+        CHECK(r.ok);
+        r.fly(10, {{4, true, 4}, {5, false, 4}});   // settle on the ground
+        const int32_t ox = r.gs.dw(d::m3::ox), oz = r.gs.dw(d::m3::oz);
+        const int16_t cockpit = r.gs.w(d::m3::ptrgwinf);
+        r.fly(8, {{2, true, 0x32}, {3, false, 0x32}});
+        CHECK(r.gs.dw(d::m3::oz) == static_cast<int32_t>(210u << 16));   // 210 units up
+        CHECK(r.gs.w(d::m3::ptrgwinf) == static_cast<int16_t>(d::m3::gwinfs));
+        r.fly(8, {{2, true, 0x32}, {3, false, 0x32}});                    // the map key again
+        CHECK(r.gs.dw(d::m3::ox) == ox);
+        CHECK(r.gs.dw(d::m3::oz) == oz);                                  // back where we were
+        CHECK(r.gs.w(d::m3::ptrgwinf) == cockpit);
+        CHECK(r.eng.cecode == 0);
+    }
+
+    // A training mission has no theater file: initperms builds the runway, tower and the rest
+    {
+        Run r("MORNING", true);
+        CHECK(r.ok);
+        r.fly(20, {});
+        int objects = 0;
+        for (int k = 0; k < 320; k++)   // the near object table
+            if (r.gs.w(d::strtexp::exps + 74u * k + 24) != 0) objects++;
+        CHECK(objects > 10);                       // the near ones: road pieces, tower, hut ... (the rest are farmed out)
+        CHECK(r.gs.b(d::m3::ejectflag) == 0);      // in the plane
+        CHECK(r.eng.cecode == 0);
     }
 
     if (failures == 0) std::printf("test_flight: all passed\n");

@@ -558,6 +558,24 @@ bool World::putbackintable(u16& si) {
     return false;
 }
 
+// F3DVEC.ASM: drawmap - every object of every tile, drawn into the front window
+void World::drawmap() {
+    const u16 win = static_cast<u16>(W(d::m3::ptrgwinf));
+    for (int ty = 0; ty < NTILESY; ty++) {
+        SW(CURTILEY, static_cast<i16>(ty));
+        for (int tx = 0; tx < NTILESX; tx++) {
+            SW(CURTILEX, static_cast<i16>(tx));
+            const u16 seg = gettileadr();
+            u16 tileptr = 0;
+            for (int k = 0; k < NOBJTILE; k++) {
+                if (decodeobj(seg, tileptr, static_cast<u16>(MEMOBJBUF))) break;   // the end of the tile
+                m_eng.d3dobj(static_cast<u16>(MEMOBJBUF), win);
+                tileptr = static_cast<u16>(tileptr + NBYTEOBJ);
+            }
+        }
+    }
+}
+
 // F3DVEC.ASM: drawmemseg - draws the med/far objects; the ones that came close
 // enough move into the near table's object array
 bool World::drawmemseg() {
@@ -627,6 +645,70 @@ bool World::strtperm(u16 src, u16 tmpl, i16 initialqual, u16& slot) {
     SW(si + 24, static_cast<i16>(static_cast<u16>(W(si + 24)) | q));
     for (int k = 0; k < 9; k++) SW(si + 2u * k, W(src + 2u * k));   // position and angles from the caller
     slot = si;
+    return false;
+}
+
+// the common tail of strtaa / strtvest / strtdbst: mark the new object timed with the quality, put
+// it at the position given by the caller (angles pointing straight ahead, or up for the aa site)
+static void settleSite(GameState& g, u16 si, u16 src, i16 initialqual, i16 pitch) {
+    u16 q = static_cast<u16>(initialqual & 7);
+    q = static_cast<u16>((q >> 4) | (q << 12));
+    q |= 0x8000;
+    g.setW(si + 24u, static_cast<i16>(g.uw(si + 24u) | q));
+    g.setW(si + 46u, 0);
+    g.setW(si + 48u, 0);
+    g.setW(si + 50u, 0);
+    g.setB(si + 18u, 0);
+    g.setW(si + 12u, 0);
+    g.setW(si + 16u, 0);
+    g.setW(si + 14u, pitch);
+    for (int k = 0; k < 6; k++) g.setW(si + 2u * k, g.w(src + 2u * k));
+}
+
+bool World::strtaa(u16 src, i16 initialqual) {
+    SW(d::strtexp::oldobjptr, static_cast<i16>(src));
+    u16 si;
+    SW(d::strtexp::expobj, static_cast<i16>(d::defobjs::fltsm1aa));
+    if (expstrt(static_cast<u16>(d::defobjs::fltsm1aa), si)) return true;
+    SW(d::strtexp::expobj, static_cast<i16>(si));
+    SB(si + 18, 0);
+    SW(si + 52, static_cast<i16>(d::m3_equ::dballtime));
+    settleSite(m_g, si, src, initialqual, -16384);   // straight up
+    SW(d::strtexp::naa, static_cast<i16>(W(d::strtexp::naa) + 1));
+    return false;
+}
+
+bool World::strtvest(u16 src, i16 initialqual) {
+    SW(d::strtexp::oldobjptr, static_cast<i16>(src));
+    u16 si;
+    SW(d::strtexp::expobj, static_cast<i16>(d::defobjs::objvest));
+    if (expstrt(static_cast<u16>(d::defobjs::objvest), si)) return true;
+    SW(d::strtexp::expobj, static_cast<i16>(si));
+    SB(si + 18, 0);
+    // resetvest: twice the dball rest time, and half as much again
+    u16 rest = static_cast<u16>(W(d::strtexp::vechrest) * 2);
+    rest = static_cast<u16>(rest + (rest >> 1));
+    SW(si + 52, static_cast<i16>(rest));
+    settleSite(m_g, si, src, initialqual, 0);
+    return false;
+}
+
+bool World::strtdbst(u16 src, i16 initialqual) {
+    SW(d::strtexp::oldobjptr, static_cast<i16>(src));
+    u16 si;
+    SW(d::strtexp::expobj, static_cast<i16>(d::defobjs::objdbst));
+    if (expstrt(static_cast<u16>(d::defobjs::objdbst), si)) return true;
+    SW(d::strtexp::expobj, static_cast<i16>(si));
+    // getqtblptr: the entry of dbstqtbl for the object's quality
+    const u16 table = static_cast<u16>(d::strtexp::dbstqtbl);
+    const u16 entryBytes = static_cast<u16>(W(table) * 2);
+    const u16 quality = static_cast<u16>((static_cast<u16>(W(si + 24u)) >> 12) & 7);
+    const u16 entry = static_cast<u16>(table + 2 + (entryBytes & 0xFF) * quality);
+    SB(d::defobjs::dbstclr, B(entry));          // the default color
+    SW(d::strtexp::dbstrest, W(entry + 4));     // our rest time
+    SB(si + 18, 0);
+    SW(si + 52, W(d::strtexp::dbstrest));       // resetdbst
+    settleSite(m_g, si, src, initialqual, 0);
     return false;
 }
 

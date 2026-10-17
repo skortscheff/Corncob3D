@@ -139,6 +139,7 @@ private:
     void stabdamage();
     void engdamage();
     void getinplane(u16 si);
+    void initperms();
     void interiorview();
     void fullsize();
     void restoreview();
@@ -173,6 +174,20 @@ private:
     void grndpt(u32 point);
     void fgrndpt(u32 point);
     void sgrndpt(u32 point);
+
+    // ---- map mode (MAP.ASM, Main3Map.cpp) ----
+    void mapRequest();
+    void mapStart();
+    void mapFrame();
+    void mapkey();
+    void kinetic(u16 si);
+    void pgupanddown(u16 si);
+    void getjoy(i16& ax, i16& bx);
+    void restoreox();
+    void setyah();
+    void drawyah();
+    void changewallobjs();
+    void chgwloop(u16& si, int cx, i16 dx);
 
     // ---- DEFOBJS.ASM / STRTEXP.ASM routines of objects ----
     bool evaldist(u16 si, u16& dist);
@@ -237,6 +252,8 @@ private:
     static constexpr int GNPTS = engine::F3dVec::GNPTS;
     bool m_done = false;
     bool m_paused = false;
+    bool m_mapActive = false;    // maploop is running
+    bool m_mapCockpit = false;   // it was started from the cockpit, which has to come back
 };
 
 } // namespace corncob::game

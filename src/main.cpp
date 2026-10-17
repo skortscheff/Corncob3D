@@ -113,12 +113,14 @@ int main(int argc, char* argv[]) {
     // --frames <n>:            frames to run before the screenshot (default 8)
     // --fps <n>:               game frames per second, 5-60 (default 20)
     // --keyscript "<f>+<hex>;<f>-<hex>": scripted key presses (PC scan codes) for screenshot runs
+    // --training:              a training mission: no theater file, the permanent objects of initperms
     const char* shotPath = nullptr;
     const char* introShots = nullptr;
     const char* theater = "MORNING";
     const char* keyscript = nullptr;
     bool skipIntro = false;
     bool noSound = false;
+    bool training = false;
     int hd = 1;
     int shotFrames = 8;
     int fps = 20;   // game frames per second (the original: 10-20, depending on the machine)
@@ -128,6 +130,7 @@ int main(int argc, char* argv[]) {
         else if (std::strcmp(argv[i], "--shot-intro") == 0 && i + 1 < argc) introShots = argv[++i];
         else if (std::strcmp(argv[i], "--skip-intro") == 0) skipIntro = true;
         else if (std::strcmp(argv[i], "--nosound") == 0) noSound = true;
+        else if (std::strcmp(argv[i], "--training") == 0) training = true;
         else if (std::strcmp(argv[i], "--hd") == 0 && i + 1 < argc) hd = std::clamp(std::atoi(argv[++i]), 1, 4);
         else if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) shotFrames = std::max(1, std::atoi(argv[++i]));
         else if (std::strcmp(argv[i], "--fps") == 0 && i + 1 < argc) fps = std::clamp(std::atoi(argv[++i]), 5, 60);
@@ -164,7 +167,7 @@ int main(int argc, char* argv[]) {
     world.cleanexp();
     const std::string twr = assetPath(std::string("DEF/") + theater + ".TWR");
     const std::string cct = assetPath(std::string("DEF/") + theater + ".CCT");
-    if (!world.readunivfile(twr, cct)) {
+    if (!training && !world.readunivfile(twr, cct)) {
         std::fprintf(stderr, "Can't read theater %s (%s)\n", theater, cct.c_str());
         return 1;
     }
@@ -184,7 +187,7 @@ int main(int argc, char* argv[]) {
         EgaImg img;
         if (loadImg(assetPath("IMG/3D" + std::to_string(n) + ".IMG"), img)) screen.drawPanel(img, 0);
     });
-    game.startUp(true);
+    game.startUp(!training);
 
     const int minFrameTicks = static_cast<int>(TickClock::FAST_HZ / fps);
     const std::vector<ScriptEvent> script = parseScript(keyscript);
@@ -235,15 +238,6 @@ int main(int argc, char* argv[]) {
         if (clock.frmticks >= minFrameTicks) {
             going = game.frame();
             frame++;
-        }
-        if (shotPath && std::getenv("CORNCOB_TRACE") && frame % 10 == 0) {
-            if (std::FILE* f = std::fopen(std::getenv("CORNCOB_TRACE"), "a")) {
-                std::fprintf(f, "%d paused=%d done=%d scn=%02x cecode=%d topv=%d rtopv=%d,%d,%d dvel=%d acctop=%d racctop=%d pitdoth=%d orvec1=%d oz=%d groundflag=%d\n",
-                             frame, game.paused(), game.done(), gs.b(d::m3::scncode), eng.cecode, gs.w(d::m3::topv), gs.w(d::m3::rtopv), gs.w(d::m3::rtopv + 2), gs.w(d::m3::rtopv + 4),
-                             gs.dw(d::m3::dvel), gs.w(d::m3::acctop), gs.w(d::m3::racctop), gs.w(d::m3::pitdoth),
-                             gs.w(d::m3::orvec + 2), gs.dw(d::m3::oz), gs.b(d::m3::groundflag));
-                std::fclose(f);
-            }
         }
         if (shotPath && frame >= shotFrames) {
             display.saveBmp(screen, eng.palette(), shotPath);

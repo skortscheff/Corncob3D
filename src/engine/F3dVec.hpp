@@ -175,6 +175,7 @@ public:
     static constexpr u32 SGPTS = FGPTS + (2 + GNPTS) * 14;
     std::vector<uint8_t>& gscum() { return m_gscum; }
     bool g3dobj(u32 point, bool star);     // draws a ground dot / star; carry = too far, redo it
+    void eraseWin(u16 f);                  // 3.ASM erasewinf: window f painted black
     void setRdf(u8 v) { m_rdf = v; }
     u8 rdf() const { return m_rdf; }
 

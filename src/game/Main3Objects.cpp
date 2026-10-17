@@ -557,4 +557,177 @@ void Main3::getang(u16 bx, u16 si) {
     const i16 znew = madd(z2, z1);   // the new z coord height
     SW(si + 4, atn2(ytemp, znew));
 }
+
+// ==========================================================================================
+// DEFOBJS.ASM initperms: the permanent objects of a training mission (and a mission without a
+// scenario file): the runway, the tower, the hut, the walls of the world, the enemy sites ...
+// ==========================================================================================
+void Main3::initperms() {
+    constexpr i16 W_ = d::m3_equ::w, ROADX = d::m3_equ::roadx, WALLSZ = 16383, LTW = 900;
+    constexpr i16 TWSZ = 1000, TWSZL = 8000, DBSZ = 400, TETHT = 16384, TREEHT = 2000, FRMZL = 1000;
+    const u32 kbuf = d::m3::kbuf, dxvec = d::m3::dxvec;
+    using namespace d::defobjs;
+
+    // places an object from template tmpl at the 9 words of kbuf, with this quality
+    auto perm = [&](u32 tmpl, i16 quality) {
+        SW(d::strtexp::initialqual, quality);
+        u16 slot;
+        m_world.strtperm(static_cast<u16>(kbuf), static_cast<u16>(tmpl), quality, slot);
+    };
+    auto kw = [&](int off, i16 v) { SW(kbuf + off, v); };
+    // the 9 words of a record at once: x (lo, hi), y (lo, hi), z (lo, hi), then the three angles
+    auto rec = [&](i16 x0, i16 x1, i16 y0, i16 y1, i16 z0, i16 z1, i16 a0, i16 a1, i16 a2) {
+        const i16 v[9] = {x0, x1, y0, y1, z0, z1, a0, a1, a2};
+        for (int k = 0; k < 9; k++) kw(2 * k, v[k]);
+    };
+
+    SW(d::defobjs::nplaced, add16(W(d::defobjs::nplaced), 1));   // put planes behind us
+    for (int k = 0; k < 74; k++) SW(kbuf + 2 * k, 0);
+    // the road: the pieces run off to the south of the start point
+    kw(4, -W_ * 4);
+    kw(6, -1);
+    kw(8, 0);
+    kw(10, 0);
+    kw(0, -1);
+    kw(2, ROADX);
+    perm(objroadend, 0);
+    addToDword(kbuf, -32768);   // advance the position
+    for (int k = 0; k < 10; k++) {
+        perm(roadpiece, 0);
+        addToDword(kbuf, -32768);
+    }
+    perm(objroadend1, 0);
+    SD(kbuf, static_cast<i32>(static_cast<u32>(D(M3(startcoords))) - 12000u));
+    kw(4, 0);
+    kw(6, 0);
+    perm(roadpiece, 7);   // a non-striped piece
+
+    if (B(M3(actionflag)) == 0) {
+        auto randomSpot = [&](u32 at) {   // two random dwords, x and y
+            i16 hi;
+            i32 lo = grand(hi);
+            SW(at, static_cast<i16>(static_cast<u32>(lo) & 0xFFFF));
+            SW(at + 2, hi);
+            lo = grand(hi);
+            SW(at + 4, static_cast<i16>(static_cast<u32>(lo) & 0xFFFF));
+            SW(at + 6, hi);
+        };
+        for (int k = 0; k < d::m3_equ::ngmo; k++) {   // the ground missile sites
+            randomSpot(dxvec);
+            SW(dxvec + 10, 0);
+            SW(dxvec + 8, static_cast<i16>(d::m3_equ::xgmx2));
+            SW(d::strtexp::initialqual, 0);
+            u16 slot;
+            m_world.strtperm(static_cast<u16>(dxvec), static_cast<u16>(gms), 0, slot);
+        }
+        // a random quality when the file says so
+        auto quality = [&](i16 q) -> i16 { return q < 0 ? static_cast<i16>(m_rand.rand_w() & 7) : q; };
+        auto raised = [&]() {   // the site sits a little off the ground
+            randomSpot(dxvec);
+            SW(dxvec + 8, 2 * DBSZ);
+            SW(dxvec + 10, 0);
+        };
+        for (int n = W(d::m3::naas); n > 0; n--) {
+            const i16 q = quality(W(M3(qualaa)));
+            SW(d::strtexp::initialqual, q);
+            raised();
+            m_world.strtaa(static_cast<u16>(dxvec), q);
+        }
+        for (int k = 0; k < 6; k++) SW(dxvec + 2 * k, W(M3(ox) + 2 * k));
+        SW(dxvec + 6, add16(W(dxvec + 6), -5));
+        SW(dxvec + 2, add16(W(dxvec + 2), 2));
+        SW(d::strtexp::maxnvechs, W(M3(nvest)));
+        for (int n = W(M3(nvest)); n > 0; n--) {
+            const i16 q = quality(W(M3(qualvest)));
+            SW(d::strtexp::initialqual, q);
+            raised();
+            m_world.strtvest(static_cast<u16>(dxvec), q);
+        }
+        SW(d::strtexp::maxndballs, W(M3(ndbst)));
+        for (int n = W(M3(ndbst)); n > 0; n--) {
+            const i16 q = quality(W(M3(qualdbst)));
+            SW(d::strtexp::initialqual, q);
+            raised();
+            m_world.strtdbst(static_cast<u16>(dxvec), q);
+        }
+
+        // the walls round the world
+        rec(WALLSZ * 2, 0, 0, 0, WALLSZ, 0, 0, 0, 0);
+        perm(objwallx, 4);
+        kw(0, -WALLSZ * 2);
+        kw(2, -1);
+        kw(8, WALLSZ);
+        perm(objwallx, 4);
+        kw(0, 0);
+        kw(2, 0);
+        kw(8, 2 * WALLSZ);
+        perm(objwallz, 4);
+
+        // (saucey = 0) the bomber, the creature, the trees, the farm, the tetrahedra
+        rec(0, -6, 32000, 1, 0, 2, 0, 0, 0);
+        perm(objbmrst, 0);
+        kw(0, 10000);
+        kw(2, -6);
+        kw(4, 22000);
+        perm(objbmrst, 0);
+        kw(4, 42000);
+        perm(objbmrst, 0);
+
+        rec(0, 3, 32000, 2, 0, 0, 0, 0, 0);
+        perm(crtr, 0);
+
+        for (int k = 0; k < 50; k++) {   // trees; the quality is whatever was left in ax (the segment)
+            randomSpot(kbuf);
+            kw(8, TREEHT);
+            kw(10, 0);
+            perm(objshell, 0);
+        }
+        rec(0, 0, -1, -2, FRMZL, 0, 0, 0, 0);
+        perm(objbmr, 0);
+
+        i16 tz = TETHT, tzHi = 0;
+        for (int row = 0; row < 2; row++) {
+            i16 ax = 0;
+            for (int k = 0; k < 6; k++) {
+                kw(0, 0);
+                kw(2, ax);
+                ax = add16(ax, 2);
+                kw(4, 0);
+                kw(6, 2);
+                kw(8, tz);
+                kw(10, tzHi);
+                kw(12, 0);
+                kw(14, 0);
+                kw(16, 0);
+                perm(objtet, 0);
+            }
+            const u32 sum = static_cast<u32>(static_cast<u16>(tz)) + static_cast<u32>(TETHT + TETHT);
+            tz = static_cast<i16>(sum & 0xFFFF);
+            tzHi = static_cast<i16>(tzHi + static_cast<i16>(sum >> 16));
+        }
+    }
+
+    // the plane that got us here, the tower and the airport buildings, the survivors
+    rec(8000, ROADX - 1, 8000, 0, W(M3(hmin)), 0, -8192, static_cast<i16>(d::m3_equ::epitchmin), 0);
+    perm(obj5da, 0);
+    rec(-1, ROADX, 16000, 0, LTW * 4, 0, 0, 0, 0);
+    perm(objtw, 0);
+    perm(objrdr, 0);
+    rec(-1, ROADX, 22000, 0, 0, 0, 0, 0, 0);
+    perm(objman, 0);
+    rec(-1, ROADX - 2, 16000 - TWSZ * 2, 0, 0, 0, 0, 0, 0);
+    perm(objhut, 0);
+    rec(-1, ROADX - 2, 16000, 0, TWSZL * 2, 0, 0, 0, 0);
+    perm(tower, 0);
+    rec(0, 0, 0, 0, 0, 0, 0, 0, 0);
+    perm(objsurv, 0);
+    perm(objsurv, 0);
+    rec(0, -32, 0, -32, 0, 0, 0, 0, 0);
+    perm(objsurv, 0);
+    rec(0, 0, 0, -32, 0, 0, 0, 0, 0);
+    perm(objsurv, 0);
+    rec(0, -32, 0, 0, 0, 0, 0, 0, 0);
+    perm(objsurv, 0);
+}
+
 } // namespace corncob::game

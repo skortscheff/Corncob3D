@@ -869,6 +869,13 @@ void F3dVec::scrfbx(int row, int x, int rows, int widthPx, u8 color) {
     m_scr.fillRect(x, row, widthPx, rows, color);
 }
 
+void F3dVec::eraseWin(u16 f) {
+    const int s = m_scr.scale();
+    const Win w = win(f);
+    const int words = static_cast<u16>(W(f + 8) + 1) >> 4;
+    scrfbx(w.fillRow, w.fillX, W(f + 10) * s, words * 16 * s, 0);
+}
+
 void F3dVec::xvect(u16 si, u16 bx) {
     i16 z = W(bx);
     if (B(HRFLG) == 0) {

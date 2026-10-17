@@ -89,6 +89,7 @@ public:
     bool tomemseg();                    // object at [fdexpobj] -> a free slot
     void frommemseg(u16 si, u16 di);
     bool drawmemseg();
+    void drawmap();                     // draws every object of every tile (map mode)
     bool putbackintable(u16& si);
     void copytable();
 
@@ -100,6 +101,11 @@ public:
     // strtperm: places an object from template tmpl at the 9 words (x, y, z, angles) at src, as a
     // new object of quality initialqual; carry = no room. `slot` is the new object (expobj).
     bool strtperm(u16 src, u16 tmpl, i16 initialqual, u16& slot);
+    // strtaa / strtvest / strtdbst: the enemy sites (a dball launcher, a vehicle site, a dball site)
+    // placed at the dword x, y, z at src; carry = no room
+    bool strtaa(u16 src, i16 initialqual);
+    bool strtvest(u16 src, i16 initialqual);
+    bool strtdbst(u16 src, i16 initialqual);
     // The first half of expmov: objects primed with bit 15 join the near table.
     // Movement of timed objects (objmov) is Phase 5.
     void expmovPrime();
