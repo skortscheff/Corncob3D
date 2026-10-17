@@ -95,6 +95,11 @@ public:
     // ---- STRTEXP.ASM ----
     void cleanexp();
     bool findexp(u16& si);
+    // expstrt: a free timed object slot filled from the template at tmpl; carry = no room
+    bool expstrt(u16 tmpl, u16& si);
+    // strtperm: places an object from template tmpl at the 9 words (x, y, z, angles) at src, as a
+    // new object of quality initialqual; carry = no room. `slot` is the new object (expobj).
+    bool strtperm(u16 src, u16 tmpl, i16 initialqual, u16& slot);
     // The first half of expmov: objects primed with bit 15 join the near table.
     // Movement of timed objects (objmov) is Phase 5.
     void expmovPrime();

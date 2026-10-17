@@ -3,6 +3,7 @@
 
 #pragma once
 #include <SDL.h>
+#include <vector>
 
 namespace corncob {
 
@@ -23,6 +24,16 @@ public:
     // First key pressed during the last pollEvents (SDL_SCANCODE_UNKNOWN if none)
     SDL_Scancode lastKey() const { return m_lastKey; }
 
+    // Every key press and release seen during the last pollEvents, in order, with the
+    // SDL timestamp (ms) so the keyboard emulation can place them within the frame.
+    // Auto-repeats are dropped.
+    struct KeyEvent {
+        SDL_Scancode scancode;
+        bool down;
+        Uint32 timestampMs;
+    };
+    const std::vector<KeyEvent>& keyEvents() const { return m_keyEvents; }
+
     bool shouldQuit() const { return m_quit; }
     void setQuit() { m_quit = true; }
 
@@ -36,6 +47,7 @@ private:
     SDL_Renderer* m_renderer = nullptr;
     bool m_quit = false;
     SDL_Scancode m_lastKey = SDL_SCANCODE_UNKNOWN;
+    std::vector<KeyEvent> m_keyEvents;
 };
 
 } // namespace corncob

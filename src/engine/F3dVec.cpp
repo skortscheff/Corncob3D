@@ -1351,7 +1351,7 @@ void F3dVec::drawnear() {
         bool draw = true;
         if (cx > 1) {
             if (W(si + 24) == 0) draw = false;
-            else qcollis(si);
+            else qcollis(si, bx);
         }
         if (draw && checkforrunway(si)) {
             m_rdf = B(si + 18);   // already drawn in the runway pass

@@ -37,7 +37,15 @@ add_executable(corncob3d
     src/platform/Input.cpp
     src/engine/AsmTables.cpp
     src/engine/F3dVec.cpp
+    src/engine/F3dObj.cpp
     src/game/World.cpp
+    src/game/Keyboard.cpp
+    src/game/Main3.cpp
+    src/game/Main3Flight.cpp
+    src/game/Main3Ground.cpp
+    src/game/Main3Frame.cpp
+    src/game/Main3Misc.cpp
+    src/game/Main3Objects.cpp
     src/render/EgaScreen.cpp
     src/assets/Assets.cpp
     src/render/FrameBuffer.cpp
@@ -60,12 +68,12 @@ target_include_directories(test_dgroup PRIVATE src/)
 target_link_libraries(test_dgroup PRIVATE dgroup)
 add_test(NAME dgroup COMMAND test_dgroup)
 add_executable(test_engine tests/test_engine.cpp
-    src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/render/EgaScreen.cpp)
+    src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/engine/F3dObj.cpp src/render/EgaScreen.cpp)
 target_include_directories(test_engine PRIVATE src/)
 target_link_libraries(test_engine PRIVATE SDL2::SDL2 dgroup)
 add_test(NAME engine COMMAND test_engine)
 add_executable(test_world tests/test_world.cpp src/game/World.cpp
-    src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/render/EgaScreen.cpp)
+    src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/engine/F3dObj.cpp src/render/EgaScreen.cpp)
 target_include_directories(test_world PRIVATE src/)
 target_compile_definitions(test_world PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
 target_link_libraries(test_world PRIVATE SDL2::SDL2 dgroup)

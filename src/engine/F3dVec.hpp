@@ -20,6 +20,7 @@
 #include "game/GameState.hpp"
 #include "render/EgaScreen.hpp"
 #include <cstdint>
+#include <vector>
 
 namespace corncob::engine {
 
@@ -37,9 +38,23 @@ struct Win {
     int fillRow, fillX;   // where scrfbx starts filling (ymindi as a row/pixel)
 };
 
+// What the engine needs from the game code: the per-type object routines (DEFOBJS.ASM
+// objtimtable, called with si = object, di = the other object or 0xFFFF for the plane,
+// carry = "destroy") and 3.ASM's damageplane.
+class GameHooks {
+public:
+    virtual ~GameHooks() = default;
+    virtual void objroutine(u16 type, u16 si, u16 di, bool carry) = 0;
+    virtual void damageplane(u16 count) = 0;
+};
+
 class F3dVec {
 public:
     F3dVec(GameState& gs, EgaScreen& scr);
+
+    void setHooks(GameHooks* h) { m_hooks = h; }
+    // The timer's oticks (cs:oticks), which qcrash reads for the wall damage interval
+    void setTickSource(const u16* oticks) { m_clockTicks = oticks; }
 
     // ---- matrices (F3DVEC.ASM, MAT.ASM) ----
     void calcsin(u16 bx);                 // angles yaw,pitch,roll at [bx]
@@ -140,12 +155,42 @@ private:
     void reducecoords();
     u16 rand_w();
 
-    // Hooks for collision/timed-object code from later phases
-    void qtimed(u16) {}
-    void qcollis(u16) {}
-    void qcrash(u16) {}
-    void qwalk(u16) {}
+    // ---- F3DEVC.ASM object interaction (F3dObj.cpp) ----
+public:
+    u16 vmag(u16 si);                       // magnitude of the vector at [si]
+    bool relobj5d(u16 si);                  // like rel3d, relative to the player's plane (obj5d)
+    void qtimed(u16 si);                    // runs the object's timed routine
+    void qcollis(u16 si, u16 bx);           // bx = si's slot in the table
+    void qwalk(u16 si);                     // walking person vs object
+    void qcrash(u16 si);                    // plane vs object
+    void slam(u16 si, u16 di);              // two objects collided
+    u16 rangeBits() const { return m_range; }   // cx left by rel3d / relobj5d
 
+    // Ground detail points (the gscum far segment of 3.ASM): ngpts, then the gpts, fgpts and
+    // sgpts arrays of 14 byte records (dword x, y, z and a flag word)
+    static constexpr int GNPTS = 80;
+    static constexpr u32 GPTS = 2;                                  // offset of gpts
+    static constexpr u32 FGPTS = GPTS + (2 + GNPTS) * 14;
+    static constexpr u32 SGPTS = FGPTS + (2 + GNPTS) * 14;
+    std::vector<uint8_t>& gscum() { return m_gscum; }
+    bool g3dobj(u32 point, bool star);     // draws a ground dot / star; carry = too far, redo it
+    void setRdf(u8 v) { m_rdf = v; }
+    u8 rdf() const { return m_rdf; }
+
+private:
+    void oldqcollis(u16 si, u16 di, bool& carry);
+    void qcollis1(u16 si, u16 di);
+    bool getx1(u16 si, u16 di);
+    bool qvelon(u16 si, u16 di);
+    void divs_qd(u16 di, i32 den);
+    void callRoutine(u16 si, u16 di, bool carry);
+
+    void srel3d(u32 point);
+    void grel3d(u32 point);
+    i32 gsDw(u32 off) const;
+    GameHooks* m_hooks = nullptr;
+    const u16* m_clockTicks = nullptr;
+    std::vector<uint8_t> m_gscum = std::vector<uint8_t>(SGPTS + (2 + 2 * GNPTS) * 14 + 16, 0);
     GameState& m_g;
     EgaScreen& m_scr;
     EgaPalette m_pal;

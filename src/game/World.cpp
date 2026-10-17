@@ -606,6 +606,30 @@ void World::copytable() {
 
 // ---- STRTEXP.ASM ----
 
+// STRTEXP.ASM: expstrt
+bool World::expstrt(u16 tmpl, u16& si) {
+    if (findexp(si)) return true;   // no free objects
+    std::memmove(m_g.raw() + si, m_g.raw() + tmpl, NBYTEXP);
+    return false;
+}
+
+// STRTEXP.ASM: strtperm
+bool World::strtperm(u16 src, u16 tmpl, i16 initialqual, u16& slot) {
+    SW(d::strtexp::oldobjptr, static_cast<i16>(src));
+    SW(d::strtexp::expobj, static_cast<i16>(tmpl));
+    u16 si;
+    if (expstrt(tmpl, si)) return true;
+    SW(d::strtexp::expobj, static_cast<i16>(si));   // our new object
+    SB(si + 18, 0);                                  // set the distance to near
+    u16 q = static_cast<u16>(initialqual & 7);       // merge the quality with the object type
+    q = static_cast<u16>((q >> 4) | (q << 12));      // ror ax,4
+    q |= 0x8000;                                     // the new object bit
+    SW(si + 24, static_cast<i16>(static_cast<u16>(W(si + 24)) | q));
+    for (int k = 0; k < 9; k++) SW(si + 2u * k, W(src + 2u * k));   // position and angles from the caller
+    slot = si;
+    return false;
+}
+
 // STRTEXP.ASM: cleanexp - empties the timed object table
 void World::cleanexp() {
     // resetnplaced

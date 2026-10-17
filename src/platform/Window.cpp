@@ -40,11 +40,14 @@ bool Window::init() {
 
 bool Window::pollEvents() {
     m_lastKey = SDL_SCANCODE_UNKNOWN;
+    m_keyEvents.clear();
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
         if (e.type == SDL_QUIT) m_quit = true;
         if (e.type == SDL_KEYDOWN && !e.key.repeat && m_lastKey == SDL_SCANCODE_UNKNOWN)
             m_lastKey = e.key.keysym.scancode;
+        if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && !e.key.repeat)
+            m_keyEvents.push_back({e.key.keysym.scancode, e.type == SDL_KEYDOWN, e.key.timestamp});
     }
     return !m_quit;
 }

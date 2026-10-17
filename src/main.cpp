@@ -1,17 +1,20 @@
 // main.cpp - Corncob 3-D (Windows/SDL2 port) entry point and main loop
 //
-// Status: Phase 2. The intro, loading screen and instrument panel are real, the
-// universe is the theater the player picked (DEF/<name>.CCT and .TWR, loaded the
-// way readunivfile does) and every frame is drawn by the ported 3D engine in the
-// original's order: epage, horizon (modhr + hrobj), sun, drawmemseg, expmov,
-// drawnear, copytable, dotiles, flipage. The observer is steered by a placeholder
-// controller that writes orvec/ox directly; Phase 3 replaces it with 3.ASM.
+// Status: Phase 3. The intro, loading screen and instrument panel are real, the universe is the
+// theater the player picked (DEF/<name>.CCT and .TWR, loaded the way readunivfile does) and the
+// game itself is the ported 3.ASM main loop (game/Main3): the player starts on foot at the
+// airstrip and the first plane within reach takes them, flies with the original's flight model,
+// and ejects, crashes and lands as the original does. Instruments, weapons, sound and the
+// front end come in later phases.
 
 #include "assets/Assets.hpp"
 #include "core/AsmMath.hpp"
 #include "engine/AsmTables.hpp"
 #include "engine/F3dVec.hpp"
 #include "game/GameState.hpp"
+#include "game/Keyboard.hpp"
+#include "game/Main3.hpp"
+#include "game/TickClock.hpp"
 #include "game/World.hpp"
 #include "math/Trig.hpp"
 #include "platform/Input.hpp"
@@ -23,8 +26,10 @@
 #include <SDL.h>
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 using namespace corncob;
 namespace d = corncob::dgroup;
@@ -33,105 +38,56 @@ using engine::u16;
 
 namespace {
 
-// Placeholder for the 3.ASM flight model: drives orvec (yaw, pitch, roll) and
-// moves the eye along the view direction
-struct Observer {
-    int32_t x = 0, y = 0, z = 0;
-    i16 yaw = 0, pitch = 0, roll = 0;
-    int speed = 0;   // world units per second
+// --keyscript "30+0D;60-0D": at frame 30 press the PC scan code 0D, at frame 60 release it
+struct ScriptEvent {
+    int frame;
+    bool down;
+    uint8_t code;
 };
 
-void steer(Observer& o, const Input& in, float dt) {
-    const float rate = 12000.0f * dt;   // binary angle units per second
-    if (in.isKeyDown(SDL_SCANCODE_UP)) o.pitch = static_cast<i16>(o.pitch + rate);
-    if (in.isKeyDown(SDL_SCANCODE_DOWN)) o.pitch = static_cast<i16>(o.pitch - rate);
-    if (in.isKeyDown(SDL_SCANCODE_LEFT)) o.roll = static_cast<i16>(o.roll - rate);
-    if (in.isKeyDown(SDL_SCANCODE_RIGHT)) o.roll = static_cast<i16>(o.roll + rate);
-    if (in.isKeyDown(SDL_SCANCODE_COMMA)) o.yaw = static_cast<i16>(o.yaw + rate);
-    if (in.isKeyDown(SDL_SCANCODE_PERIOD)) o.yaw = static_cast<i16>(o.yaw - rate);
-    if (in.isKeyDown(SDL_SCANCODE_A)) o.speed = std::min(o.speed + static_cast<int>(20000 * dt), 40000);
-    if (in.isKeyDown(SDL_SCANCODE_Z)) o.speed = std::max(o.speed - static_cast<int>(20000 * dt), 0);
-    if (in.hasJoystick()) {
-        o.roll = static_cast<i16>(o.roll + in.joystickAxis(0) * rate);
-        o.pitch = static_cast<i16>(o.pitch - in.joystickAxis(1) * rate);
+std::vector<ScriptEvent> parseScript(const char* s) {
+    std::vector<ScriptEvent> out;
+    while (s && *s) {
+        char* end = nullptr;
+        const long frame = std::strtol(s, &end, 10);
+        if (end == s || (*end != '+' && *end != '-')) break;
+        const bool down = *end == '+';
+        const long code = std::strtol(end + 1, &end, 16);
+        out.push_back({static_cast<int>(frame), down, static_cast<uint8_t>(code)});
+        s = end;
+        while (*s == ';' || *s == ' ' || *s == ',') s++;
     }
-}
-
-void moveObserver(Observer& o, GameState& gs, float dt) {
-    // forward = row 0 of orot: (cos y cos p, sin y cos p, -sin p) in 1.15
-    const u16 orot = static_cast<u16>(d::f3dvec::orot);
-    const float step = o.speed * dt / 32768.0f;
-    o.x += static_cast<int32_t>(gs.w(orot) * step);
-    o.y += static_cast<int32_t>(gs.w(orot + 2) * step);
-    o.z += static_cast<int32_t>(gs.w(orot + 4) * step);
-    o.z = std::max(o.z, 720);   // ehmin, the lowest the eye goes
-}
-
-// 3.ASM: orvec -> orot/norot (calcsin, calcmat, ncalcmat), ox/oy/oz, viewkludge
-void applyObserver(const Observer& o, GameState& gs, engine::F3dVec& eng) {
-    const u16 orvec = static_cast<u16>(d::m3::orvec);
-    gs.setW(orvec, o.yaw);
-    gs.setW(orvec + 2, o.pitch);
-    gs.setW(orvec + 4, o.roll);
-    eng.calcsin(orvec);
-    eng.calcmat(static_cast<u16>(d::f3dvec::orot));
-    eng.calcsin(orvec);
-    eng.ncalcmat(static_cast<u16>(d::f3dvec::norot));
-    gs.setDw(d::m3::ox, o.x);
-    gs.setDw(d::m3::ox + 4, o.y);
-    gs.setDw(d::m3::ox + 8, o.z);
-    gs.setW(d::m3::viewkludge, o.pitch);
-}
-
-// One frame in the order of the 3.ASM main loop
-void drawFrame(GameState& gs, engine::F3dVec& eng, game::World& world) {
-    const u16 ptrgwinf = gs.uw(d::m3::ptrgwinf);
-    gs.setW(d::m3::frmnum, static_cast<i16>(gs.w(d::m3::frmnum) + 1));
-    eng.epage();
-
-    eng.modhr();
-    gs.setB(d::m3::hrflg, 0xFF);
-    eng.d3dobj(static_cast<u16>(d::m3::hrobj), ptrgwinf);
-    gs.setB(d::m3::hrflg, 0);
-
-    // the sun: 1000 units out at sunangle above the horizon
-    const u16 xvec = static_cast<u16>(d::m3::xvec);
-    const i16 sunangle = gs.w(d::m3::sunangle);
-    gs.setW(xvec, 0);
-    gs.setW(xvec + 2, asmx::hmul(static_cast<i16>(-engine::ssin(sunangle)), 1000));
-    gs.setW(xvec + 4, asmx::hmul(engine::scos(sunangle), 1000));
-    eng.drawrdirect(static_cast<u16>(d::defobjs::objsun), ptrgwinf);
-
-    world.drawmemseg();      // med/far objects; the ones that came close join the near table
-    world.expmovPrime();     // STRTEXP expmov: primed objects are added to the near table
-    eng.drawnear();
-    world.copytable();       // objects that moved away go back to the med/far table
-    world.dotiles();         // read in / farm out tiles around the observer
-    eng.flipage();
+    return out;
 }
 
 } // namespace
 
 int main(int argc, char* argv[]) {
-    // --screenshot <file.bmp>: skip the intro, render a few frames, save one, exit
+    // --screenshot <file.bmp>: skip the intro, run the game for --frames frames, save one, exit
     // --shot-intro <prefix>:   run intro + loading screen unattended, save one BMP per scene, exit
     // --skip-intro:            go straight to the loading screen and game
     // --hd <n>:                start at n x 640x350 (HD mode)
     // --theater <name>:        DEF/<name>.CCT + .TWR to fly over (WHTSANDS, DUSK, MORNING, WASTELND)
-    // --pose z,yaw,pitch,roll[,fwd]: screenshot viewpoint (fwd moves along the start heading)
+    // --frames <n>:            frames to run before the screenshot (default 8)
+    // --fps <n>:               game frames per second, 5-60 (default 20)
+    // --keyscript "<f>+<hex>;<f>-<hex>": scripted key presses (PC scan codes) for screenshot runs
     const char* shotPath = nullptr;
     const char* introShots = nullptr;
-    const char* pose = nullptr;
     const char* theater = "MORNING";
+    const char* keyscript = nullptr;
     bool skipIntro = false;
     int hd = 1;
+    int shotFrames = 8;
+    int fps = 20;   // game frames per second (the original: 10-20, depending on the machine)
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) shotPath = argv[++i];
         else if (std::strcmp(argv[i], "--theater") == 0 && i + 1 < argc) theater = argv[++i];
-        else if (std::strcmp(argv[i], "--pose") == 0 && i + 1 < argc) pose = argv[++i];
         else if (std::strcmp(argv[i], "--shot-intro") == 0 && i + 1 < argc) introShots = argv[++i];
         else if (std::strcmp(argv[i], "--skip-intro") == 0) skipIntro = true;
         else if (std::strcmp(argv[i], "--hd") == 0 && i + 1 < argc) hd = std::clamp(std::atoi(argv[++i]), 1, 4);
+        else if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) shotFrames = std::max(1, std::atoi(argv[++i]));
+        else if (std::strcmp(argv[i], "--fps") == 0 && i + 1 < argc) fps = std::clamp(std::atoi(argv[++i]), 5, 60);
+        else if (std::strcmp(argv[i], "--keyscript") == 0 && i + 1 < argc) keyscript = argv[++i];
     }
 
     init_sin_table();
@@ -158,6 +114,8 @@ int main(int argc, char* argv[]) {
     if (havePanel) screen.drawPanel(panel, 0);
 
     // The theater MOAG would have left as towers.dat/3univ.dat (3.ASM readunivfile)
+    TickClock clock;
+    DosKeyboard keyboard(gs, clock);
     game::World world(gs, eng);
     world.cleanexp();
     const std::string twr = assetPath(std::string("DEF/") + theater + ".TWR");
@@ -166,87 +124,96 @@ int main(int argc, char* argv[]) {
         std::fprintf(stderr, "Can't read theater %s (%s)\n", theater, cct.c_str());
         return 1;
     }
-
     eng.readcolors();
     eng.setcolors(255);
-    {   // if the sky is dark, make the ground detail light and the sun a moon
-        const u16 sky = static_cast<u16>(d::f3dvec::skycolors);
-        if (gs.b(sky) + gs.b(sky + 1) + gs.b(sky + 2) <= 0x30) {
-            gs.setB(d::m3::gndcolor, 0x0E);
-            gs.setB(d::defobjs::sunclr, 15);
-        }
-    }
+
+    game::Main3 game(gs, eng, world, keyboard, clock);
+    game.onViewChange([&](bool cockpit) {
+        if (cockpit && havePanel) screen.drawPanel(panel, 0);   // readimg: the instrument panel
+    });
+    game.startUp(true);
+
+    const int minFrameTicks = static_cast<int>(TickClock::FAST_HZ / fps);
+    const std::vector<ScriptEvent> script = parseScript(keyscript);
+    size_t scriptPos = 0;
 
     Input input;
     input.initJoystick();
-
-    // Start where 3.ASM puts a player who comes from the menu: on foot at startcoords,
-    // 3000 units back along y
-    Observer obs;
-    obs.x = gs.dw(d::m3::startcoords);
-    obs.y = gs.dw(d::m3::startcoords + 4) - 3000;
-    obs.z = gs.dw(d::m3::startcoords + 8);
-    obs.yaw = gs.w(d::m3::startcoords + 12);
-    obs.pitch = gs.w(d::m3::startcoords + 14);
-
-    if (shotPath) {
-        // a little above the field, banked, looking down the line of objects
-        obs.z = 4000;
-        obs.pitch = 900;
-        obs.roll = 1500;
-        if (pose) {
-            int z = obs.z, yaw = obs.yaw, pitch = obs.pitch, roll = obs.roll, fwd = 0;
-            std::sscanf(pose, "%d,%d,%d,%d,%d", &z, &yaw, &pitch, &roll, &fwd);
-            const i16 c = engine::scos(obs.yaw), s = engine::ssin(obs.yaw);
-            obs.x += static_cast<int32_t>((static_cast<int64_t>(fwd) * c) >> 15);
-            obs.y += static_cast<int32_t>((static_cast<int64_t>(fwd) * s) >> 15);
-            obs.z = z;
-            obs.yaw = static_cast<i16>(yaw);
-            obs.pitch = static_cast<i16>(pitch);
-            obs.roll = static_cast<i16>(roll);
-        }
-    }
 
     Uint64 prev = SDL_GetPerformanceCounter();
     const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
     int frame = 0;
 
     while (window.pollEvents()) {
-        Uint64 now = SDL_GetPerformanceCounter();
-        float dt = std::min(static_cast<float>((now - prev) / freq), 0.1f);
+        const Uint64 now = SDL_GetPerformanceCounter();
+        // scripted runs use a fixed 60 Hz clock so that they are repeatable
+        const double dt = shotPath ? 1.0 / 60.0 : std::min((now - prev) / freq, 0.1);
         prev = now;
 
+        // the timer interrupt first, then the keys that happened during the frame (new9)
+        const int slow = clock.advance(dt);
+        for (int i = 0; i < slow; i++) {   // new08: the 18 Hz tick counts the bullet and missile timers down
+            if (gs.uw(d::m3::bultick) != 0) gs.setW(d::m3::bultick, static_cast<i16>(gs.w(d::m3::bultick) - 1));
+            if (gs.uw(d::m3::mistick) != 0) gs.setW(d::m3::mistick, static_cast<i16>(gs.w(d::m3::mistick) - 1));
+        }
+        const Uint32 nowMs = SDL_GetTicks();
+        for (const Window::KeyEvent& e : window.keyEvents()) {
+            const uint8_t code = DosKeyboard::dosScanCode(e.scancode);
+            const double ago = std::max(0.0, (nowMs - e.timestampMs) / 1000.0) * TickClock::FAST_HZ;
+            keyboard.key(code, e.down, static_cast<uint16_t>(std::min(ago, 60000.0)));
+        }
+        while (scriptPos < script.size() && script[scriptPos].frame <= frame) {
+            keyboard.key(script[scriptPos].code, script[scriptPos].down, 0);
+            scriptPos++;
+        }
         input.update();
-        if (input.isKeyJustDown(SDL_SCANCODE_ESCAPE)) break;
-        if (input.isKeyJustDown(SDL_SCANCODE_H)) {
+        if (input.isKeyJustDown(SDL_SCANCODE_F11)) {
             // HD toggle: 1x <-> 2x, panel redrawn into the new pages
             screen.setScale(screen.scale() == 1 ? 2 : 1);
-            if (havePanel) screen.drawPanel(panel, 0);
+            if (havePanel && gs.w(d::m3::ptrgwinf) == static_cast<i16>(d::m3::gwinf)) screen.drawPanel(panel, 0);
         }
-        if (input.isKeyJustDown(SDL_SCANCODE_T)) {
-            // tail (rear view) window on/off
-            gs.setW(d::m3::ptrgwint, gs.w(d::m3::ptrgwint) ? 0 : static_cast<i16>(d::m3::gwint));
-            if (havePanel) screen.drawPanel(panel, 0);
+
+        // The original ran at roughly 10-20 frames per second and its fixed point arithmetic is
+        // tuned for that: a matrix multiply loses a few units to rounding whatever the speed, so at
+        // a 60 Hz time step the thrust of one frame is smaller than that loss and the plane never
+        // gets going. Frames therefore start only once enough timer ticks have passed.
+        bool going = true;
+        if (clock.frmticks >= minFrameTicks) {
+            going = game.frame();
+            frame++;
         }
-        if (input.isKeyJustDown(SDL_SCANCODE_F)) gs.setB(d::m3::fillflg, gs.b(d::m3::fillflg) ? 0 : 0xFF);
-        if (input.isKeyJustDown(SDL_SCANCODE_R)) obs.roll = obs.pitch = 0;
-
-        steer(obs, input, dt);
-        applyObserver(obs, gs, eng);
-        moveObserver(obs, gs, dt);
-        applyObserver(obs, gs, eng);
-
-        drawFrame(gs, eng, world);
-        if (shotPath && ++frame == 8) {   // dotiles, drawmemseg and the near table need a few frames
+        if (shotPath && std::getenv("CORNCOB_TRACE") && frame % 10 == 0) {
+            if (std::FILE* f = std::fopen(std::getenv("CORNCOB_TRACE"), "a")) {
+                std::fprintf(f, "%d paused=%d done=%d scn=%02x cecode=%d topv=%d rtopv=%d,%d,%d dvel=%d acctop=%d racctop=%d pitdoth=%d orvec1=%d oz=%d groundflag=%d\n",
+                             frame, game.paused(), game.done(), gs.b(d::m3::scncode), eng.cecode, gs.w(d::m3::topv), gs.w(d::m3::rtopv), gs.w(d::m3::rtopv + 2), gs.w(d::m3::rtopv + 4),
+                             gs.dw(d::m3::dvel), gs.w(d::m3::acctop), gs.w(d::m3::racctop), gs.w(d::m3::pitdoth),
+                             gs.w(d::m3::orvec + 2), gs.dw(d::m3::oz), gs.b(d::m3::groundflag));
+                std::fclose(f);
+            }
+        }
+        if (shotPath && frame >= shotFrames) {
             display.saveBmp(screen, eng.palette(), shotPath);
             // the app has no console in release builds, so leave the report beside the image
             if (std::FILE* f = std::fopen((std::string(shotPath) + ".txt").c_str(), "w")) {
-                std::fprintf(f, "cecode=%d nearobjects=%d\n", eng.cecode, gs.w(gs.uw(d::f3dvec::tblist)));
+                std::fprintf(f, "cecode=%d frame=%d ejectflag=%d groundflag=%d freezeflag=%d rpm=%d\n"
+                                "ox=%d oy=%d oz=%d orvec=%d,%d,%d topv=%d,%d,%d missionstatus=%04x\n",
+                             eng.cecode, frame, gs.b(d::m3::ejectflag), gs.b(d::m3::groundflag), gs.b(d::m3::freezeflag),
+                             gs.w(d::m3::rpm), gs.dw(d::m3::ox), gs.dw(d::m3::ox + 4), gs.dw(d::m3::ox + 8),
+                             gs.w(d::m3::orvec), gs.w(d::m3::orvec + 2), gs.w(d::m3::orvec + 4), gs.w(d::m3::topv),
+                             gs.w(d::m3::topv + 2), gs.w(d::m3::topv + 4), gs.uw(d::m3::missionstatus));
+                std::fprintf(f, "dvel=%d,%d,%d thrtmult=%d rhotop=%d rho0=%d rpmx=%d currpmx=%d thrtsf=%d ctopv=%d,%d,%d "
+                                "alpha=%d qstald=%d nticks=%d ofrmticks=%d ozeff=%d\n",
+                             gs.dw(d::m3::dvel), gs.dw(d::m3::dvel + 4), gs.dw(d::m3::dvel + 8), gs.w(d::m3::thrtmult),
+                             gs.w(d::m3::rhotop), gs.w(d::m3::rho0), gs.w(d::m3::rpmx), gs.w(d::m3::currpmx),
+                             gs.w(d::m3::thrsf), gs.w(d::m3::ctopv), gs.w(d::m3::ctopv + 2), gs.w(d::m3::ctopv + 4),
+                             gs.w(d::m3::alpha), gs.b(d::m3::qstald), gs.w(d::m3::nticks), gs.w(d::m3::ofrmticks),
+                             gs.dw(d::m3::ozeff));
                 std::fclose(f);
             }
             break;
         }
         display.present(screen, eng.palette(), eng.panX(), eng.panY());
+        if (!going) break;
     }
     return 0;
 }
