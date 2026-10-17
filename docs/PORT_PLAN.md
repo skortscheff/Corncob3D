@@ -13,9 +13,9 @@ Faithful port of the DOS game (MASM source in this repo) to C++17 / SDL2. Origin
 - **Phase 7 (part)** AdLib sound effects through ymfm.
 - **Extra** Xbox pad: dual-stick scheme for flying and for walking (strafe, look).
 
-## Remaining
+## Remaining (next up: Phase 5a)
 
-### Step 0: verification setup
+### Step 0: verification setup (DONE, see the results at the end)
 - Install DOSBox and run the shipped `3.EXE` as a timing/behaviour reference.
 - Count the object types in the four shipped theaters (MORNING, DUSK, WHTSANDS, WASTELND) to rank which
   enemies a shareware mission uses.
