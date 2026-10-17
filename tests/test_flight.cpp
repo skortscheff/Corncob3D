@@ -5,6 +5,7 @@
 #include "DGroup.hpp"
 #include "engine/F3dVec.hpp"
 #include "game/GameState.hpp"
+#include "game/Inst.hpp"
 #include "game/Keyboard.hpp"
 #include "game/Main3.hpp"
 #include "game/TickClock.hpp"
@@ -47,7 +48,8 @@ struct Run {
     TickClock clock;
     DosKeyboard kbd{gs, clock};
     game::World world{gs, eng};
-    game::Main3 game{gs, eng, world, kbd, clock};
+    game::Instruments inst{gs, eng, scr, clock};
+    game::Main3 game{gs, eng, world, kbd, clock, inst};
     bool ok = false;
 
     explicit Run(const char* theater) {

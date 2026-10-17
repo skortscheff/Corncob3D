@@ -36,8 +36,9 @@ inline u32 abs32(i32 v) { return v < 0 ? 0u - static_cast<u32>(v) : static_cast<
 
 } // namespace
 
-Main3::Main3(GameState& gs, engine::F3dVec& eng, World& world, DosKeyboard& kbd, TickClock& clock)
-    : m_g(gs), m_eng(eng), m_world(world), m_kbd(kbd), m_clock(clock) {
+Main3::Main3(GameState& gs, engine::F3dVec& eng, World& world, DosKeyboard& kbd, TickClock& clock,
+             Instruments& inst)
+    : m_g(gs), m_eng(eng), m_world(world), m_kbd(kbd), m_clock(clock), m_inst(inst) {
     m_eng.setHooks(this);
     m_eng.setTickSource(&m_clock.oticks);
 }
@@ -71,29 +72,43 @@ void Main3::timing() {
     }
 }
 
-// 7103-7234: messages, pause and help. The pause loop of the original blocks until a second 'p';
-// here it makes frame() idle until then. Returns true while paused.
+// 7137-7233: pause and help. The original blocks in a loop until a second 'p' (or escape); here
+// frame() idles until then. F4 (or a help request) starts the same loop with a space pushed, so
+// the first help screen shows at once; space steps through the screens, the hold button flashes.
 bool Main3::pauseAndHelp() {
-    if (scncode() == 0x44 + 0x80) SW(M3(rmsgqueue), 0);   // black box message: Phase 4
     const bool helpReq = B(M3(helpreqflag)) != 0 || scncode() == 0x3E + 0x80;
     if (!m_paused) {
-        if (helpReq) SB(SCNCODE, 0x39 + 0x80);   // push a space key into the buffer: pretend pause
-        if (scncode() != 0x19 + 0x80 && !helpReq) return false;
+        if (helpReq) SB(SCNCODE, 0x39 + 0x80);   // push a space key into the buffer: pretend the pause key
+        else if (scncode() != 0x19 + 0x80) return false;
         if (key(0x38)) return false;   // alt is down: not a pause
-        if (!helpReq) clearScn();
+        if (B(M3(helpreqflag)) == 0 && scncode() != 0x39 + 0x80) clearScn();
         SB(M3(helpreqflag), 0);
-        m_paused = true;                // addtoetime: the clock is not kept running while paused
-        return true;
+        SB(M3(curhelpindex), static_cast<u8>(d::m3_equ::mincurhelpindex));
+        if (B(M3(groundflag)) == 0) SB(M3(curhelpindex), static_cast<u8>(d::m3_equ::mincurhelpindex + 1));   // skip the intro
+        drawbutton(0x0f07, 1);   // turn on the hold button
+        drawbutton(0x0500, 1);
+        m_holdColors = 0x070f;
+        m_paused = true;
     }
-    // paused: another p, or escape, resumes
-    if (scncode() == 0x19 + 0x80 || scncode() == 0x81) {
+    if (scncode() == 0x39 + 0x80) {   // space: the next help screen
+        clearScn();
+        const u8 image = B(M3(helpimgtable) + B(M3(curhelpindex)));
+        if (m_showImage) m_showImage(image);
+        SB(M3(curhelpindex), static_cast<u8>(B(M3(curhelpindex)) + 1));
+        if (B(M3(curhelpindex)) > d::m3_equ::maxcurhelpindex) SB(M3(curhelpindex), static_cast<u8>(d::m3_equ::mincurhelpindex));
+    }
+    if (!(m_clock.oticks & 1023)) m_holdColors = static_cast<u16>((m_holdColors << 8) | (m_holdColors >> 8));   // make the button flash
+    drawbutton(m_holdColors, 1);
+    if (scncode() == 0x19 + 0x80 || scncode() == 0x81) {   // p again, or escape: back to the game
         clearScn();
         m_paused = false;
+        drawbutton(0x0005, 1);   // turn off the background of the button
+        if ((m_holdColors >> 8) == 0x0f) drawbutton(static_cast<u16>((m_holdColors << 8) | (m_holdColors >> 8)), 1);
+        restoreview();           // the help screens covered the instrument panel
         return false;
     }
     return true;
 }
-
 // ==========================================================================================
 // 7324-7403: the arrow pointing to the home airport
 // ==========================================================================================

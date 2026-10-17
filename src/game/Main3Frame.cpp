@@ -115,6 +115,15 @@ void Main3::startUp(bool readFile) {
     SW(M3(vboff), 0x7e00);
     SW(M3(n), 7);
     SB(M3(redamageflag), 0);   // do not use old damage
+    {   // draw the needles once into both pages, so there is something to erase
+        const u8 inst = B(M3(instflag));
+        SB(M3(instflag), 0xFF);
+        drawndles();
+        m_eng.flipage();
+        drawndles();
+        m_eng.flipage();
+        SB(M3(instflag), inst);
+    }
     damageinit();
     SB(SCNCODE, 0);
     SB(M3(scnflg), 0);
@@ -241,7 +250,14 @@ void Main3::drawWorld() {
     if (B(M3(ejectflag)) == 0 && W(M3(rpm)) <= 50 && W(M3(currpmx)) != 0)
         m_eng.d3dobj(static_cast<u16>(M3(objprop)), ptrgwinf);
     if (B(M3(ejectflag)) == 0 || !(key(0x4C) || key(0x52))) drawgs();   // the gunsight
-    // (the instrument ticks and needles: Phase 4)
+    // the control tick marks and the needles, only with the cockpit window up
+    if (static_cast<u16>(W(ptrgwinf + 6)) <= static_cast<u16>(d::m3_equ::gfymax)) {
+        m_inst.clearticks();
+        m_inst.drawairtick(W(M3(xang)));
+        m_inst.drawelvtick(W(M3(yang)));
+        m_inst.drawrdrtick(W(M3(rdrang)));
+        drawndles();
+    }
     m_eng.flipage();
 }
 
@@ -341,7 +357,10 @@ void Main3::engineThermo() {
 // 8074-8157: frozen/crash-landed plane handling and the angles the physics starts from
 // ==========================================================================================
 void Main3::freezeAndAngles() {
-    if (B(M3(freezeflag)) != 0) return;   // (the help flash of the "+" button: Phase 4)
+    if (B(M3(freezeflag)) != 0) {   // the help button flashes: press + to get going
+        if (B(M3(helpflashflag)) != 0) drawbutton((m_clock.oticks & (1024 + 512)) ? 0x0107 : 0x0701, 12);
+        return;
+    }
     // engine temperature
     {
         const u16 rpmx = static_cast<u16>(W(M3(rpmx)));
@@ -642,8 +661,12 @@ void Main3::matricesAfterMove() {
     for (int k = 0; k < 3; k++) SW(M3(orveceff) + 2 * k, W(M3(orvec) + 2 * k));
 }
 
-// 10008-10043: the altitude lights (buttons on the panel: Phase 4)
-void Main3::altitudeLights() {}
+// 10008-10043: the lights for 10000 and 20000 feet: on when the altitude word is above 4 / 9
+// (the ASM compares the quotient of the low word too, but it can never reach its limit)
+void Main3::altitudeLights() {
+    drawbutton(static_cast<u16>(static_cast<u16>(W(M3(ozeff) + 2)) > 4 ? 0x0507 : 0x0705), 10);
+    drawbutton(static_cast<u16>(static_cast<u16>(W(M3(ozeff) + 2)) > 9 ? 0x0507 : 0x0705), 11);
+}
 
 // 10044-10082: too high: lost in space (the SRATS stars program is Phase 5)
 bool Main3::highAltitude() {

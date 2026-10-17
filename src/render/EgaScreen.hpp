@@ -39,10 +39,23 @@ public:
     const uint8_t* front() const { return m_pages[m_back ^ 1].data(); }
     void flip() { m_back ^= 1; }
 
+    // Which of the four bit planes writes reach (the sequencer map mask): the needles of the
+    // instruments are drawn into plane 3 only, so they pass over the numerals without erasing them
+    void setPlaneMask(uint8_t mask) { m_mask = mask & 15; }
+    uint8_t planeMask() const { return m_mask; }
+
     void pset(int x, int y, uint8_t c) {
-        if (static_cast<unsigned>(x) < static_cast<unsigned>(m_w) && static_cast<unsigned>(y) < static_cast<unsigned>(m_h))
-            m_pages[m_back][static_cast<size_t>(y) * m_w + x] = c;
+        if (static_cast<unsigned>(x) < static_cast<unsigned>(m_w) && static_cast<unsigned>(y) < static_cast<unsigned>(m_h)) {
+            uint8_t& p = m_pages[m_back][static_cast<size_t>(y) * m_w + x];
+            p = m_mask == 15 ? c : static_cast<uint8_t>((p & ~m_mask) | (c & m_mask));
+        }
     }
+    // Replaces every pixel of color `from` by `to` in the rectangle (inclusive, 640x350 coordinates),
+    // in both pages (the EGA read-mode-1 color compare of drawbutton)
+    void replaceColor(int x0, int y0, int x1, int y1, uint8_t from, uint8_t to);
+    // Fills a rectangle (already scaled coordinates) in both pages with all planes (rawhline
+    // done once per page, as the damage bars and buttons are)
+    void fillRectBoth(int x, int y, int w, int h, uint8_t c);
     // Pixels [x0, x1) of row y, clipped to the page
     void hspan(int x0, int x1, int y, uint8_t c);
     void fillRect(int x, int y, int w, int h, uint8_t c);
@@ -55,6 +68,7 @@ public:
 private:
     int m_scale = 1, m_w = BASE_W, m_h = BASE_H;
     int m_back = 0;
+    uint8_t m_mask = 15;
     std::array<std::vector<uint8_t>, 2> m_pages;
 };
 

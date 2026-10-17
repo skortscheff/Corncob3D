@@ -547,9 +547,11 @@ void Main3::forcesAndVelocity() {
             bx = W(M3(lfsf));   // the wing is fine
             if (B(M3(flapflag)) != 0) bx = sar16(bx, 1);
             SB(M3(qstald), 0);
-            // (sound alarm off, stall light on: Phase 4 / 7)
+            drawbutton(0x070e, 3);   // the stall light goes dark (the alarm sound: Phase 7)
+            drawbutton(0x000c, 3);
         } else if (B(M3(groundflag)) == 0) {
-            // (sound alarm on, stall light: Phase 4 / 7)
+            drawbutton(0x0e07, 3);   // stalled in the air: the light comes on
+            drawbutton(0x0c00, 3);
         }
         const i16 vz = W(M3(topv) + 4);
         i32 f = imul16(vz, vz);

@@ -71,7 +71,11 @@ void Main3::propAndWeapons() {
             SB(M3(altlighton), 0xFF);
         }
     }
-    if (altfine) SB(M3(altlighton), 0);
+    if (altfine) {
+        SB(M3(altlighton), 0);   // the light is off
+        drawbutton(0x0f00, 9);
+        drawbutton(0x070e, 9);
+    }
 
     // ---- bullets ----
     bool wantBullet = false;
@@ -146,7 +150,7 @@ void Main3::propAndWeapons() {
         else ax = since;
         if (!(ax < UW(M3(bombwait)))) {
             SB(M3(nbombs), static_cast<u8>(B(M3(nbombs)) + 1));
-            drawbutton(0, 6 + B(M3(nbombs)) - 1);
+            drawabomb(B(M3(nbombs)) - 1);
             SW(M3(lastbombtick), static_cast<i16>(ticks));
         }
     }
@@ -156,7 +160,7 @@ void Main3::propAndWeapons() {
         if (B(M3(nbombs)) != 0 && (B(M3(ejectflag)) == 0 || B(M3(remoteflag)) != 0)) {
             strtbomb();
             SB(M3(nbombs), static_cast<u8>(B(M3(nbombs)) - 1));
-            drawbutton(0, 6 + B(M3(nbombs)));
+            drawbutton(0x0708, 6 + B(M3(nbombs)));   // that bomb disappears
             SW(M3(lastbombtick), static_cast<i16>(m_clock.ticks));
         }
     } else if (!plant && key(0x38)) {   // alt
@@ -194,6 +198,7 @@ void Main3::throttleKeys() {
             if (W(M3(currpmx)) != 0) {
                 SB(M3(freezeflag), 0);   // a stopped plane gets moving again
                 SB(M3(helpflashflag), 0);
+                drawbutton(0x0107, 12);   // turn off the blue letters
                 SW(M3(rpm), add16(W(M3(rpm)), 20));
                 if (sf16(W(M3(currpmx)), W(M3(rpm)))) SW(M3(rpm), sub16(W(M3(currpmx)), 3));
             } else if ((UW(M3(obj5dbits)) & 0x100) && B(M3(ejectflag)) == 0) {
@@ -226,8 +231,9 @@ void Main3::miscKeys() {
         if (B(M3(flapflag)) != 0) {   // flaps on
             drawflapbut();
             ax = neg16(ax);
-        } else {                       // off: the button goes back to brown
-            drawbutton(0, 2);
+        } else {                       // off: the letters go white, the button brown
+            drawbutton(0x070f, 2);
+            drawbutton(0x0006, 2);
         }
         if (B(M3(groundflag)) == 0) SW(M3(pitdoth), add16(W(M3(pitdoth)), ax));   // a kick in the pants
     }
@@ -249,7 +255,12 @@ void Main3::miscKeys() {
     if (scnIs(0x1E)) {
         clearScn();
         SB(M3(autoflag), static_cast<u8>(B(M3(autoflag)) ^ 0xFF));
-        if (B(M3(autoflag)) != 0) drawautobut();
+        if (B(M3(autoflag)) != 0) {
+            drawautobut();
+        } else {
+            drawbutton(0x070f, 0);   // told you so!
+            drawbutton(0x0001, 0);   // blue goes back to black
+        }
     }
     // eject ('e')
     if (scnIs(0x12)) {

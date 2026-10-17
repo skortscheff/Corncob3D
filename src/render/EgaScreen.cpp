@@ -19,7 +19,28 @@ void EgaScreen::hspan(int x0, int x1, int y, uint8_t c) {
     x0 = std::max(x0, 0);
     x1 = std::min(x1, m_w);
     if (x0 >= x1) return;
-    std::fill_n(back() + static_cast<size_t>(y) * m_w + x0, x1 - x0, c);
+    uint8_t* row = back() + static_cast<size_t>(y) * m_w;
+    if (m_mask == 15) {
+        std::fill(row + x0, row + x1, c);
+    } else {
+        for (int x = x0; x < x1; x++) row[x] = static_cast<uint8_t>((row[x] & ~m_mask) | (c & m_mask));
+    }
+}
+
+void EgaScreen::fillRectBoth(int x, int y, int w, int h, uint8_t c) {
+    for (auto& page : m_pages)
+        for (int j = std::max(y, 0); j < std::min(y + h, m_h); j++)
+            for (int i = std::max(x, 0); i < std::min(x + w, m_w); i++) page[static_cast<size_t>(j) * m_w + i] = c;
+}
+
+void EgaScreen::replaceColor(int x0, int y0, int x1, int y1, uint8_t from, uint8_t to) {
+    const int s = m_scale;
+    for (auto& page : m_pages)
+        for (int y = std::max(y0 * s, 0); y < std::min((y1 + 1) * s, m_h); y++)
+            for (int x = std::max(x0 * s, 0); x < std::min((x1 + 1) * s, m_w); x++) {
+                uint8_t& p = page[static_cast<size_t>(y) * m_w + x];
+                if ((p & 15) == from) p = to;
+            }
 }
 
 void EgaScreen::fillRect(int x, int y, int w, int h, uint8_t c) {

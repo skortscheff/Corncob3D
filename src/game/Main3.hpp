@@ -20,6 +20,7 @@
 #include "core/SasLib.hpp"
 #include "engine/F3dVec.hpp"
 #include "game/GameState.hpp"
+#include "game/Inst.hpp"
 #include "game/Keyboard.hpp"
 #include "game/TickClock.hpp"
 #include "game/World.hpp"
@@ -36,7 +37,7 @@ using engine::u8;
 
 class Main3 : public engine::GameHooks {
 public:
-    Main3(GameState& gs, engine::F3dVec& eng, World& world, DosKeyboard& kbd, TickClock& clock);
+    Main3(GameState& gs, engine::F3dVec& eng, World& world, DosKeyboard& kbd, TickClock& clock, Instruments& inst);
 
     // The set-up 3.ASM does before the loop starts, with the theater already loaded
     void startUp(bool readFile);
@@ -50,6 +51,8 @@ public:
     // Told when the window layout changes: true = the cockpit with the instrument panel,
     // false = the full screen view (so the panel can be drawn or cleared)
     void onViewChange(std::function<void(bool)> f) { m_viewChanged = std::move(f); }
+    // Told to show a full-screen picture (help screen n, 3Dn.IMG)
+    void onShowImage(std::function<void(int)> f) { m_showImage = std::move(f); }
 
     // GameHooks (called by the engine)
     void objroutine(u16 type, u16 si, u16 di, bool carry) override;
@@ -166,21 +169,24 @@ private:
     void towertim(u16 si, bool carry);
     void homedetect(u16 si);
 
+    // ---- the instrument procs of 3.ASM (INST.ASM does the drawing) ----
+    void drawbutton(u16 colors, int button) { m_inst.drawbutton(colors, button); }
+    void drawndles() { m_inst.drawndles(); }
+    void erasndles() { m_inst.erasndles(); }
+    void flashdamage(int index) { m_inst.flashdamage(index); }
+    void drawdamage(int index) { m_inst.drawdamage(index); }
+    void drawgs() { m_inst.drawgs(); }
+    void damageinit();
+    void redrawbuts();
+    void drawflapbut();
+    void drawautobut();
+    void drawcmpltbut();
+    void drawabomb(int number);
+    void flashalt();
+    void flasheject();
+    void flashstall();
+
     // ---- hooks owned by later phases ----
-    void drawbutton(u16 colors, int button) { (void)colors; (void)button; }   // INST.ASM (Phase 4)
-    void drawndles() {}
-    void erasndles() {}
-    void damageinit() {}
-    void redrawbuts() {}
-    void drawflapbut() {}
-    void drawautobut() {}
-    void drawcmpltbut() {}
-    void flashdamage(int index) { (void)index; }
-    void drawdamage(int index) { (void)index; }
-    void flashalt() {}
-    void flasheject() {}
-    void flashstall() {}
-    void drawgs() {}
     void bulstrt() {}                         // Phase 5
     bool strtmis() { return true; }           // Phase 5 (true = failed)
     void strtbomb() {}                        // Phase 5
@@ -193,8 +199,11 @@ private:
     World& m_world;
     DosKeyboard& m_kbd;
     TickClock& m_clock;
+    Instruments& m_inst;
     sas::Random m_rand;
     std::function<void(bool)> m_viewChanged;
+    std::function<void(int)> m_showImage;
+    u16 m_holdColors = 0;
 
     static constexpr int GNPTS = engine::F3dVec::GNPTS;
     bool m_done = false;

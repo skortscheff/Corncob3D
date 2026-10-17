@@ -12,6 +12,7 @@
 #include "engine/AsmTables.hpp"
 #include "engine/F3dVec.hpp"
 #include "game/GameState.hpp"
+#include "game/Inst.hpp"
 #include "game/Keyboard.hpp"
 #include "game/Main3.hpp"
 #include "game/TickClock.hpp"
@@ -127,9 +128,14 @@ int main(int argc, char* argv[]) {
     eng.readcolors();
     eng.setcolors(255);
 
-    game::Main3 game(gs, eng, world, keyboard, clock);
+    game::Instruments instruments(gs, eng, screen, clock);
+    game::Main3 game(gs, eng, world, keyboard, clock, instruments);
     game.onViewChange([&](bool cockpit) {
         if (cockpit && havePanel) screen.drawPanel(panel, 0);   // readimg: the instrument panel
+    });
+    game.onShowImage([&](int n) {   // the help screens: 3Dn.IMG over the whole screen
+        EgaImg img;
+        if (loadImg(assetPath("IMG/3D" + std::to_string(n) + ".IMG"), img)) screen.drawPanel(img, 0);
     });
     game.startUp(true);
 
