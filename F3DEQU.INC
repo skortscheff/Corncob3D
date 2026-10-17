@@ -8,7 +8,7 @@ testerflag	equ	1
 qrocket	equ	1
 protection	equ	0
 errortrap	equ	1
-getunivbin	equ	1	; set to one to include univbin data
+getunivbin	equ	0	; the shipped 3.EXE has no univbin merge
 
 demover	equ	0
 

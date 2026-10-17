@@ -1,6 +1,6 @@
 
-slalom		equ	1
-guns		equ	0    ; no guns when 0
+slalom		equ	0
+guns		equ	1    ; shipped game: bullets, missiles and bombs
 saucey	equ	0
 normaltet equ	0
 
