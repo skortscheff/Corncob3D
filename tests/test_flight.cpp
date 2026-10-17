@@ -334,6 +334,25 @@ int main(int, char**) {
         CHECK(balls > 0);
         CHECK(vechs > 0);
     }
+    // A long flight over the real theaters with the guns going, and a bomb or a missile now and then: the
+    // enemy routines of the whole universe get their turn, and nothing raises an error
+    for (const char* theater : {"MORNING", "DUSK", "WASTELND"}) {
+        Run r(theater);
+        CHECK(r.ok);
+        r.gs.setB(d::m3::invincible, 0xFF);   // keeps it flying (and bouncing) over the enemies
+        std::vector<Key> keys = {{4, true, 0x4E}, {20, false, 0x4E}, {270, true, 0x50}, {286, false, 0x50}, {330, true, 0x1E}, {332, false, 0x1E}};   // takeoff, then the autopilot
+        for (int f = 300; f < 6000; f += 40) {
+            keys.push_back({f, true, 0x39});        // the guns
+            keys.push_back({f + 15, false, 0x39});
+            keys.push_back({f + 20, true, (f / 40) % 3 == 0 ? uint8_t(0x30) : uint8_t(0x2E)});   // a bomb, or a missile
+            keys.push_back({f + 22, false, (f / 40) % 3 == 0 ? uint8_t(0x30) : uint8_t(0x2E)});
+        }
+        r.fly(6000, keys);
+        std::printf("soak %s: cecode=%d done=%d status=%04x\n", theater, r.eng.cecode, r.game.done() ? 1 : 0,
+                    r.gs.uw(d::m3::missionstatus));
+        CHECK(r.eng.cecode == 0);
+    }
+
     if (failures == 0) std::printf("test_flight: all passed\n");
     return failures ? 1 : 0;
 }

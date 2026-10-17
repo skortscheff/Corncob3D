@@ -107,7 +107,7 @@ public:
     bool strtvest(u16 src, i16 initialqual);
     bool strtdbst(u16 src, i16 initialqual);
     // The first half of expmov: objects primed with bit 15 join the near table.
-    // Movement of timed objects (objmov) is Phase 5.
+    // (Main3::expmov does this and the movement of the timed objects in one pass; this half is unused.)
     void expmovPrime();
 
     // Reads the memseg for tests

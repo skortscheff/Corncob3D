@@ -10,31 +10,35 @@ Faithful port of the DOS game (MASM source in this repo) to C++17 / SDL2. Origin
 - **Phase 3** the main loop (`3.ASM`): flight model, keyboard emulation, collisions, plane/tower/runway
   routines, map mode, remote tail view, training-mission start (`initperms`).
 - **Phase 4** instruments, buttons, damage bars, help screens.
-- **Phase 5a** timed-object engine and explosions (`src/game/Main3Timed.cpp`): `objmov`, `expmov` (prime + move
-  in one loop, as the original), flotsam, shards, incendiaries, puffs, booms with sound, and the destroy paths
-  `fdest`, `fdestrdr`, `gmdest`, `odest`'s explosion. Wired into the type table (types 3, 8-10, 18, 19, 25-27,
-  29, 33, 35-39). `--spawn-hit <n>` (main.cpp) is a dev aid that spawns a missile site ahead and destroys it at
-  frame n. Checked by ctest (`flight`) and by screenshots (smoke, fireballs, debris).
-- **Phase 7 (part)** AdLib sound effects through ymfm.
+- **Phase 5** combat and timed objects (`STRTEXP.ASM`, parts of `DEFOBJS.ASM`, `3.ASM`, `PICT.ASM`), finished:
+  - **5a** (`Main3Timed.cpp`): `objmov`, `expmov` (prime + move in one loop, as the original), flotsam, shards,
+    incendiaries, puffs, booms with sound, the destroy paths `fdest`, `fdestrdr`, `gmdest`, `odest`.
+  - **5b** (`Main3Weapons.cpp`): guns (`bulstrt`, `bulmov`, `bdest`), missiles (`strtmis`, `mistim`), bombs
+    (`strtbomb`, `strtbomb1`, `bombtim`, the planted assassin bomb), craters (`crtrtim`).
+  - **5c** (`Main3Sites.cpp`, `Main3Flyers.cpp`): AA guns and shells, death balls and their sites, vehicles and
+    their sites, mortars, walls, barrage balloons, the headquarters orbs and every objective check (`bigdest`,
+    `hqtim`, `dhqtim`, `incondest`), bombers and their sites, tetrahedra, aliens, portals, shell objects, the
+    man, the hut, the rescue van start, and `initnumbers`. All 61 entries of `objtimtable` are wired in
+    `Main3Objects.cpp`. Radar dots are drawn by `Instruments::radardot`.
+  - **5d**: `Main3::finishResults` / `resultBytes` (the 3.res block the tower reads), the mission-end pictures
+    (`ui/MissionEnd`, `ui/MissionPictures`, which follow `PICT.ASM pict` exactly), and the red crash screen.
+  - Checked by ctest (`flight`: weapons, explosions, every enemy type running, a 6000-frame invincible soak over
+    MORNING, DUSK and WASTELND; `pict`) and by screenshots.
+  - Dev aids in `main.cpp`: `--spawn-hit <n>`, `--spawn-enemies`, `--end-pictures <hex> [--death n] [--shot-end p]`,
+    `--res <file>`.
+  - Deliberate deviation: the original's `bulmov` loops over 32 records of a table that has 23, walking into the
+    templates after it; the port only moves the 23. `bdest` in the original tests a flag left over from the
+    caller; it is always clear there, so the port skips the test.
+  - Quirks kept: `nflt` is never incremented in the original (so the flotsam cap never applies); the first
+    bullet record starts "live" and puffs once at its fixed spot.- **Phase 7 (part)** AdLib sound effects through ymfm.
 - **Extra** Xbox pad: dual-stick scheme for flying and for walking (strafe, look).
 
-## Remaining (next up: Phase 5b)
+## Remaining (next up: Phase 7 music, then Phase 8)
 
 ### Step 0: verification setup (DONE, see the results at the end)
 - Install DOSBox and run the shipped `3.EXE` as a timing/behaviour reference.
 - Count the object types in the four shipped theaters (MORNING, DUSK, WHTSANDS, WASTELND) to rank which
   enemies a shareware mission uses.
-
-### Phase 5: combat and timed objects (`STRTEXP.ASM`, about 5,300 lines), in four steps
-- **5a (DONE)** timed-object engine and explosions: `objmov` / `expmov`; flotsam (`strtflt`, `flttim`), shards,
-  incendiaries, booms and puffs; the destroy paths (`fdest`, `odest`, `gmdest`).
-  Not in 5a, left for later steps: `mandest`, `bigdest`/`hqtim` (5c), `strtbomb1`/`bombtim`/`mistim` (5b).
-  Note: the original never increments `nflt` (only `flttim` decrements it), so the flotsam cap never bites.
-- **5b your weapons:** guns (`bulstrt`, `bulmov`, `shelltim`), missiles (`strtmis`, `mistim`), bombs
-  (`strtbomb`, `bombtim`); hit detection and damage; ammo counters.
-- **5c enemies and mission objects**, ordered by the theater count: ground missile sites and AA, death
-  balls and sites, vehicles and sites, survivors, bombers, the creature, walls, HQ, mortars, rescue.
-- **5d scoring and results:** `initnumbers`, mission-status bits, `PICT.DAT` end screens, the crash screen.
 
 ### Phase 7 remainder: music
 - ROL + BNK player for `CCMUSIC.BNK` / `*.ROL` (title and menu music) on the existing OPL core.

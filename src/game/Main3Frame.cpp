@@ -685,7 +685,7 @@ void Main3::altitudeLights() {
     drawbutton(static_cast<u16>(static_cast<u16>(W(M3(ozeff) + 2)) > 9 ? 0x0507 : 0x0705), 11);
 }
 
-// 10044-10082: too high: lost in space (the SRATS stars program is Phase 5)
+// 10044-10082: too high: lost in space (the SRATS stars program is Phase 9)
 bool Main3::highAltitude() {
     if (!(UW(M3(obj5dbits)) & 0x2000)) return false;   // only the bomber goes that high
     const i32 oz = D(M3(ozeff));

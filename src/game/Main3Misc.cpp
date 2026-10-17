@@ -1,7 +1,7 @@
 // Main3Misc.cpp - Port of the rest of the 3.ASM main loop: prop, weapons, throttle, flaps,
 // autopilot, ejecting, the parachute, the escape key and the end of the mission
 //
-// 3.ASM lines 10234-11300. Weapons (bulstrt, strtmis, strtbomb) are Phase 5; the requests are
+// 3.ASM lines 10234-11300. The weapons themselves are Main3Weapons.cpp; the requests are
 // made here exactly as the ASM does, with the timers and counters that limit them.
 
 #include "Main3.hpp"
@@ -468,7 +468,7 @@ bool Main3::finishMission() {
     return false;
 }
 
-// 3.ASM crash: the plane crashed (the animation of the original is Phase 5/8)
+// 3.ASM crash: the plane crashed: the noises, the status bits, and the red shaking screen
 void Main3::crash() {
     if (B(M3(invincible)) != 0) {
         resetplane();

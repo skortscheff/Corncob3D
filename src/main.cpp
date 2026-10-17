@@ -139,6 +139,8 @@ int main(int argc, char* argv[]) {
     // --training:              a training mission: no theater file, the permanent objects of initperms
     // --spawn-hit <n>:         a development aid: a ground missile site appears ahead of the plane at
     //                          frame 1 and is destroyed at frame n (to look at the explosion pieces)
+    // --spawn-enemies:         a development aid: an AA gun, a death ball site, a vehicle site, a mortar, a
+    //                          barrage balloon, a tetrahedron and a bomber site appear around the strip
     // --end-pictures <hex status> [--death <code>] [--shot-end <prefix>]:
     //                          show the mission-end pictures for a mission status (as the tower would
     //                          after a mission), or save them as <prefix>NN.bmp, and exit
@@ -155,6 +157,7 @@ int main(int argc, char* argv[]) {
     int fps = 20;   // game frames per second (the original: 10-20, depending on the machine)
     int spawnHitFrame = -1;
     int endStatus = -1, deathCode = 0;
+    bool spawnEnemies = false;
     const char* shotEnd = nullptr;
     const char* resPath = nullptr;
     for (int i = 1; i < argc; i++) {
@@ -169,6 +172,7 @@ int main(int argc, char* argv[]) {
         else if (std::strcmp(argv[i], "--fps") == 0 && i + 1 < argc) fps = std::clamp(std::atoi(argv[++i]), 5, 60);
         else if (std::strcmp(argv[i], "--keyscript") == 0 && i + 1 < argc) keyscript = argv[++i];
         else if (std::strcmp(argv[i], "--spawn-hit") == 0 && i + 1 < argc) spawnHitFrame = std::max(2, std::atoi(argv[++i]));
+        else if (std::strcmp(argv[i], "--spawn-enemies") == 0) spawnEnemies = true;
         else if (std::strcmp(argv[i], "--end-pictures") == 0 && i + 1 < argc) endStatus = static_cast<int>(std::strtol(argv[++i], nullptr, 16));
         else if (std::strcmp(argv[i], "--death") == 0 && i + 1 < argc) deathCode = std::atoi(argv[++i]);
         else if (std::strcmp(argv[i], "--shot-end") == 0 && i + 1 < argc) shotEnd = argv[++i];
@@ -296,6 +300,25 @@ int main(int argc, char* argv[]) {
             gs.setDw(kbuf + 4, gs.dw(ox + 4) + 4000);
             gs.setDw(kbuf + 8, 0);
             world.strtperm(static_cast<uint16_t>(kbuf), static_cast<uint16_t>(d::defobjs::gms), 0, spawnedSite);
+        }
+        if (spawnEnemies && frame == 1) {   // --spawn-enemies: one of each kind, off to the sides of the runway
+            spawnEnemies = false;
+            const uint32_t kbuf = d::m3::kbuf, ox = d::m3::ox;
+            auto spot = [&](int dx, int dy) {
+                for (int k = 0; k < 9; k++) gs.setW(kbuf + 2 * k, gs.w(ox + 2 * k));
+                gs.setDw(kbuf, gs.dw(ox) + dx);
+                gs.setDw(kbuf + 4, gs.dw(ox + 4) + dy);
+                gs.setDw(kbuf + 8, 0);
+            };
+            uint16_t slot;
+            const uint16_t src = static_cast<uint16_t>(kbuf);
+            spot(6000, 3000);   world.strtaa(src, 7);
+            spot(-6000, 3000);  world.strtdbst(src, 7);
+            spot(7000, 8000);   world.strtvest(src, 7);
+            spot(-7000, 8000);  world.strtperm(src, static_cast<uint16_t>(d::defobjs::objmort), 4, slot);
+            spot(-8000, 12000); world.strtperm(src, static_cast<uint16_t>(d::defobjs::objbb), 3, slot);
+            spot(8000, 12000);  world.strtperm(src, static_cast<uint16_t>(d::defobjs::objtet), 0, slot);
+            spot(9000, 3000);   world.strtperm(src, static_cast<uint16_t>(d::defobjs::objbmrst), 5, slot);
         }
         if (spawnedSite && frame == spawnHitFrame && clock.frmticks >= minFrameTicks) {   // ... and its destruction
             for (int k = 0; k < 40 && gs.w(spawnedSite + 72) == 27; k++) game.objroutine(27, spawnedSite, 0xFFFF, true);

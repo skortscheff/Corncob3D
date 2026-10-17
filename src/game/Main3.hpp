@@ -8,9 +8,9 @@
 // What the loop calls but other phases own goes through small hooks that do nothing yet, each
 // marked with the phase that fills it in:
 //   instruments   INST.ASM   drawbutton, drawndles, flashdamage ...           (Phase 4)
-//   weapons       STRTEXP    bulstrt, strtmis, strtbomb, bulmov, expmov        (Phase 5)
+//   weapons and enemies: Main3Weapons/Timed/Sites/Flyers.cpp (STRTEXP.ASM)     (Phase 5, done)
 //   sound         ADL.ASM    voiceon, adlwrt ...                               (Phase 7)
-//   front end     TOWER.EXE  briefings, the end-of-mission pictures            (Phase 8)
+//   front end     TOWER.EXE  briefings, scores (the end pictures are in ui/MissionEnd)  (Phase 8)
 //
 // Original quirks kept on purpose: commands fire on key release (scncode with bit 7), controls are
 // integrated over the time since the last read (scalekey), JS/JNS after CMP/SUB test the sign of

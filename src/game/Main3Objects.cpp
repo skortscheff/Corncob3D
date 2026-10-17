@@ -2,8 +2,8 @@
 // the plane's destruction, getting into a plane, damage; and the small view procs of 3.ASM
 //
 // The type -> routine table is DEFOBJS.ASM's objtimtable. Types whose routines belong to the
-// combat code (HQs, vehicles, missiles, flotsam, shards ...) are Phase 5 and simply leave the
-// object alone here (the same as returning without doing anything).
+// combat code (HQs, vehicles, missiles, flotsam, shards ...) live in Main3Timed, Main3Weapons, Main3Sites and
+// Main3Flyers.cpp; the table here sends each type to its routine.
 
 #include "Main3.hpp"
 #include "DGroup.hpp"
