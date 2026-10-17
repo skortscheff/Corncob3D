@@ -142,7 +142,7 @@ bool inputNumber(TextScreen& t, const std::string& title, const std::vector<std:
 }
 
 UiKey pager(TextScreen& t, const std::string& title, const std::vector<std::string>& lines, const std::string& footer) {
-    const int col = 1, row = 1, w = TextScreen::COLS - 2, h = TextScreen::ROWS - 2;
+    const int col = 0, row = 0, w = TextScreen::COLS, h = TextScreen::ROWS;
     const int visible = h - 3;
     int top = 0;
     const int maxTop = std::max(0, static_cast<int>(lines.size()) - visible);
@@ -152,9 +152,9 @@ UiKey pager(TextScreen& t, const std::string& title, const std::vector<std::stri
         for (int i = 0; i < visible; i++) {
             const int li = top + i;
             if (li >= static_cast<int>(lines.size())) break;
-            t.putMarkup(col + 2, row + 1 + i, lines[li], WINDOW, WINDOW_HOT);
+            t.putMarkup(col + 1, row + 1 + i, lines[li], WINDOW, WINDOW_HOT);
         }
-        t.put(col + 2, row + h - 2, footer, WINDOW_TITLE);
+        t.put(col + 1, row + h - 2, footer, WINDOW_TITLE);
         const UiKey k = t.waitKey();
         if (k.quit) return k;
         if (k.code == SDLK_ESCAPE || k.code == SDLK_RETURN || k.code == SDLK_KP_ENTER) return k;

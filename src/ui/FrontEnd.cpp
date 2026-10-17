@@ -252,7 +252,7 @@ struct FrontEnd::Impl {
         int page = 0;
         for (;;) {
             const std::string title = page == 0 ? "Corncob 3D documentation" : fmt("Corncob 3D documentation: chapter %d of %d", page, static_cast<int>(pages.size()) - 1);
-            const std::string footer = "PGUP PGDN scroll, type a chapter number, <CR> next chapter, b beginning, <ESC> exits";
+            const std::string footer = "PGUP PGDN, chapter number, <CR> next chapter, b beginning, <ESC> exit";
             const UiKey k = pager(t, title, pages[page], footer);
             if (k.quit || k.code == SDLK_ESCAPE) return;
             if (k.code == SDLK_RETURN || k.code == SDLK_KP_ENTER) {

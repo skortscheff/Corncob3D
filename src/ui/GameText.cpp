@@ -110,6 +110,7 @@ std::vector<std::vector<std::string>> docPages() {
         while (!p.empty() && trim(p.back()).empty()) p.pop_back();
         while (!p.empty() && trim(p.front()).empty()) p.erase(p.begin());
     }
+    while (pages.size() > 1 && pages.back().empty()) pages.pop_back();   // nothing after the last form feed
     return pages;
 }
 
