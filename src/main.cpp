@@ -1,17 +1,18 @@
 // main.cpp - Corncob 3-D (Windows/SDL2 port) entry point and main loop
 //
-// Status: Phase 1. The intro, loading screen and instrument panel are real, and
-// every frame is drawn by the ported 3D engine (F3DVEC.ASM) in the original's
-// order: epage, horizon (modhr + hrobj), sun, drawnear, flipage. The observer
-// is steered by a placeholder controller that writes orvec/ox directly, and a
-// handful of real DEFOBJS templates stand in for the universe; Phases 2-3
-// replace both with the ported 3.ASM/MAP.ASM code.
+// Status: Phase 2. The intro, loading screen and instrument panel are real, the
+// universe is the theater the player picked (DEF/<name>.CCT and .TWR, loaded the
+// way readunivfile does) and every frame is drawn by the ported 3D engine in the
+// original's order: epage, horizon (modhr + hrobj), sun, drawmemseg, expmov,
+// drawnear, copytable, dotiles, flipage. The observer is steered by a placeholder
+// controller that writes orvec/ox directly; Phase 3 replaces it with 3.ASM.
 
 #include "assets/Assets.hpp"
 #include "core/AsmMath.hpp"
 #include "engine/AsmTables.hpp"
 #include "engine/F3dVec.hpp"
 #include "game/GameState.hpp"
+#include "game/World.hpp"
 #include "math/Trig.hpp"
 #include "platform/Input.hpp"
 #include "platform/Window.hpp"
@@ -31,36 +32,6 @@ using engine::i16;
 using engine::u16;
 
 namespace {
-
-constexpr int NBYTEXP = 74;   // F3DEQU.INC: bytes per 3D object record
-
-// DEFOBJS templatetable indices
-enum Template : int { T_HQ = 0, T_RADAR = 3, T_TW = 4, T_ROAD = 5, T_TOWER = 6, T_VECH = 12, T_HUT = 34 };
-
-// Places a copy of a DEFOBJS template in the exps array and the near table,
-// the way the universe loader will in Phase 2
-class DemoScene {
-public:
-    DemoScene(GameState& gs, engine::F3dVec& eng) : m_g(gs), m_eng(eng) {}
-
-    void place(int type, int32_t x, int32_t y, int32_t z, i16 yaw = 0) {
-        const u16 tmpl = m_g.uw(d::defobjs::templatetable + 2 * type);
-        const u16 obj = static_cast<u16>(d::strtexp::exps + m_used++ * NBYTEXP);
-        std::memmove(m_g.raw() + obj, m_g.raw() + tmpl, NBYTEXP);
-        m_g.setDw(obj, x);
-        m_g.setDw(obj + 4, y);
-        if (z != INT32_MIN) m_g.setDw(obj + 8, z);   // else keep the template's height
-        m_g.setW(obj + 12, yaw);
-        m_g.setB(obj + 18, 0);
-        m_g.setW(obj + 72, static_cast<i16>(type));  // type index, as qtimed/checkforrunway expect
-        m_eng.tbadd(static_cast<u16>(d::f3dvec::neartbl), obj);
-    }
-
-private:
-    GameState& m_g;
-    engine::F3dVec& m_eng;
-    int m_used = 0;
-};
 
 // Placeholder for the 3.ASM flight model: drives orvec (yaw, pitch, roll) and
 // moves the eye along the view direction
@@ -113,7 +84,7 @@ void applyObserver(const Observer& o, GameState& gs, engine::F3dVec& eng) {
 }
 
 // One frame in the order of the 3.ASM main loop
-void drawFrame(GameState& gs, engine::F3dVec& eng) {
+void drawFrame(GameState& gs, engine::F3dVec& eng, game::World& world) {
     const u16 ptrgwinf = gs.uw(d::m3::ptrgwinf);
     gs.setW(d::m3::frmnum, static_cast<i16>(gs.w(d::m3::frmnum) + 1));
     eng.epage();
@@ -131,7 +102,11 @@ void drawFrame(GameState& gs, engine::F3dVec& eng) {
     gs.setW(xvec + 4, asmx::hmul(engine::scos(sunangle), 1000));
     eng.drawrdirect(static_cast<u16>(d::defobjs::objsun), ptrgwinf);
 
+    world.drawmemseg();      // med/far objects; the ones that came close join the near table
+    world.expmovPrime();     // STRTEXP expmov: primed objects are added to the near table
     eng.drawnear();
+    world.copytable();       // objects that moved away go back to the med/far table
+    world.dotiles();         // read in / farm out tiles around the observer
     eng.flipage();
 }
 
@@ -142,14 +117,17 @@ int main(int argc, char* argv[]) {
     // --shot-intro <prefix>:   run intro + loading screen unattended, save one BMP per scene, exit
     // --skip-intro:            go straight to the loading screen and game
     // --hd <n>:                start at n x 640x350 (HD mode)
+    // --theater <name>:        DEF/<name>.CCT + .TWR to fly over (WHTSANDS, DUSK, MORNING, WASTELND)
     // --pose z,yaw,pitch,roll[,fwd]: screenshot viewpoint (fwd moves along the start heading)
     const char* shotPath = nullptr;
     const char* introShots = nullptr;
     const char* pose = nullptr;
+    const char* theater = "MORNING";
     bool skipIntro = false;
     int hd = 1;
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) shotPath = argv[++i];
+        else if (std::strcmp(argv[i], "--theater") == 0 && i + 1 < argc) theater = argv[++i];
         else if (std::strcmp(argv[i], "--pose") == 0 && i + 1 < argc) pose = argv[++i];
         else if (std::strcmp(argv[i], "--shot-intro") == 0 && i + 1 < argc) introShots = argv[++i];
         else if (std::strcmp(argv[i], "--skip-intro") == 0) skipIntro = true;
@@ -178,38 +156,38 @@ int main(int argc, char* argv[]) {
     EgaImg panel;
     const bool havePanel = loadImg(assetPath("IMG/3D.IMG"), panel);
     if (havePanel) screen.drawPanel(panel, 0);
+
+    // The theater MOAG would have left as towers.dat/3univ.dat (3.ASM readunivfile)
+    game::World world(gs, eng);
+    world.cleanexp();
+    const std::string twr = assetPath(std::string("DEF/") + theater + ".TWR");
+    const std::string cct = assetPath(std::string("DEF/") + theater + ".CCT");
+    if (!world.readunivfile(twr, cct)) {
+        std::fprintf(stderr, "Can't read theater %s (%s)\n", theater, cct.c_str());
+        return 1;
+    }
+
     eng.readcolors();
     eng.setcolors(255);
+    {   // if the sky is dark, make the ground detail light and the sun a moon
+        const u16 sky = static_cast<u16>(d::f3dvec::skycolors);
+        if (gs.b(sky) + gs.b(sky + 1) + gs.b(sky + 2) <= 0x30) {
+            gs.setB(d::m3::gndcolor, 0x0E);
+            gs.setB(d::defobjs::sunclr, 15);
+        }
+    }
 
     Input input;
     input.initJoystick();
 
-    // Start where 3.ASM puts the player: startcoords, moved back to the runway start
+    // Start where 3.ASM puts a player who comes from the menu: on foot at startcoords,
+    // 3000 units back along y
     Observer obs;
     obs.x = gs.dw(d::m3::startcoords);
-    obs.y = gs.dw(d::m3::startcoords + 4) - 8000;   // ox+4 -= w*4
+    obs.y = gs.dw(d::m3::startcoords + 4) - 3000;
     obs.z = gs.dw(d::m3::startcoords + 8);
     obs.yaw = gs.w(d::m3::startcoords + 12);
     obs.pitch = gs.w(d::m3::startcoords + 14);
-
-    // Stand-in scenery: real DEFOBJS templates laid out ahead of the start
-    DemoScene scene(gs, eng);
-    {
-        const i16 c = engine::scos(obs.yaw), s = engine::ssin(obs.yaw);
-        auto at = [&](int fwd, int side, int type, int32_t z = INT32_MIN) {
-            int32_t x = obs.x + static_cast<int32_t>((static_cast<int64_t>(fwd) * c - static_cast<int64_t>(side) * s) >> 15);
-            int32_t y = obs.y + static_cast<int32_t>((static_cast<int64_t>(fwd) * s + static_cast<int64_t>(side) * c) >> 15);
-            scene.place(type, x, y, z, obs.yaw);
-        };
-        for (int f = 4000; f <= 68000; f += 16000) at(f, 0, T_ROAD, 0);
-        at(20000, 9000, T_TOWER);
-        at(36000, -9000, T_HUT);
-        at(52000, 12000, T_RADAR);
-        at(90000, -6000, T_HQ);
-        at(140000, 30000, T_HQ);
-        at(30000, -16000, T_VECH);
-        at(70000, 20000, T_TW);
-    }
 
     if (shotPath) {
         // a little above the field, banked, looking down the line of objects
@@ -258,9 +236,14 @@ int main(int argc, char* argv[]) {
         moveObserver(obs, gs, dt);
         applyObserver(obs, gs, eng);
 
-        drawFrame(gs, eng);
-        if (shotPath && ++frame == 4) {
+        drawFrame(gs, eng, world);
+        if (shotPath && ++frame == 8) {   // dotiles, drawmemseg and the near table need a few frames
             display.saveBmp(screen, eng.palette(), shotPath);
+            // the app has no console in release builds, so leave the report beside the image
+            if (std::FILE* f = std::fopen((std::string(shotPath) + ".txt").c_str(), "w")) {
+                std::fprintf(f, "cecode=%d nearobjects=%d\n", eng.cecode, gs.w(gs.uw(d::f3dvec::tblist)));
+                std::fclose(f);
+            }
             break;
         }
         display.present(screen, eng.palette(), eng.panX(), eng.panY());
