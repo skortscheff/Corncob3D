@@ -327,23 +327,23 @@ void Main3::moveobs() {
 }
 
 // 3.ASM step / goodstep: take a step forward
-void Main3::step(i16 stepsz) {
+void Main3::step(i16 stepsz, i16 side) {
     const u16 now = m_clock.oticks;
     if (static_cast<i16>(abs16(sub16(static_cast<i16>(now), W(M3(steptick))))) <= 40) return;   // jle nostepnow
     SW(M3(steptick), static_cast<i16>(now));
     SW(M3(orvec), add16(W(M3(orvec)), W(M3(steporvec))));   // a little sway
     SW(M3(steporvec), neg16(W(M3(steporvec))));
-    goodstep(stepsz);
+    goodstep(stepsz, side);
 }
 
-void Main3::goodstep(i16 stepsz) {
+void Main3::goodstep(i16 stepsz, i16 side) {
     const i16 pitch = W(M3(orvec) + 2);
     SW(M3(orvec) + 2, 0);
     m_eng.calcsin(static_cast<u16>(M3(orvec)));
     m_eng.ncalcmat(static_cast<u16>(M3(dnrot)));
     SW(M3(orvec) + 2, pitch);
     SW(M3(xvec), stepsz);   // move forward
-    SW(M3(xvec) + 2, 0);
+    SW(M3(xvec) + 2, side);   // and sideways (positive is to the left)
     SW(M3(xvec) + 4, 0);
     m_eng.matvmul(static_cast<u16>(M3(xvec)), static_cast<u16>(M3(dnrot)), static_cast<u16>(M3(surfacev)));
     SW(M3(surfacev) + 4, 0);   // no z motion

@@ -223,8 +223,13 @@ void Main3::miscKeys() {
         clearScn();
         SB(M3(gdflg), static_cast<u8>(B(M3(gdflg)) ^ 0xFF));
     }
-    if (B(M3(ejectflag)) != 0 && key(0x4C)) step(wtadj(800));       // running
-    if (B(M3(ejectflag)) != 0 && key(0x52)) step(wtadj(-800));      // a step backward
+    if (B(M3(ejectflag)) != 0) {
+        i16 fwd = 0;
+        if (key(0x4C)) fwd = wtadj(800);         // running
+        else if (key(0x52)) fwd = wtadj(-800);   // a step backward
+        const i16 side = wtadj(static_cast<i16>(-m_strafe * 800));   // strafing (the pad's left stick)
+        if (fwd != 0 || side != 0) step(fwd, side);
+    }
 
     // flaps ('f')
     if (scncode() == 0xA1) {

@@ -75,7 +75,7 @@ std::vector<ScriptEvent> parseScript(const char* s) {
 //     A guns   X missiles   B bomb   Y flaps     L3 brakes   R3 autopilot
 //     D-pad left rear window   D-pad right ground detail dots
 //   On foot
-//     left stick    up = run forward, down = step back, left / right = turn
+//     left stick    up = run forward, down = step back, left / right = strafe
 //     right stick   look around (turn and tilt the view)
 //     A             pull the ripcord while falling
 //   Both          Back = eject / step out    Start = pause
@@ -94,7 +94,8 @@ void updatePad(const Input& in, DosKeyboard& kbd, game::Main3& game, GameState& 
     const float lx = axis(SDL_CONTROLLER_AXIS_LEFTX), ly = axis(SDL_CONTROLLER_AXIS_LEFTY);
     const float rx = axis(SDL_CONTROLLER_AXIS_RIGHTX), ry = axis(SDL_CONTROLLER_AXIS_RIGHTY);
 
-    if (onFoot) game.setPad(pad, std::clamp(lx + rx, -1.0f, 1.0f), ry, 0.0f);   // turn and look
+    game.setStrafe(onFoot ? lx : 0.0f);
+    if (onFoot) game.setPad(pad, rx, -ry, 0.0f);   // turn and look (stick up = look up)
     else game.setPad(pad, lx, ly, 0.0f);                                          // fly
 
     key(0, axis(SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 0.3f || btn(SDL_CONTROLLER_BUTTON_DPAD_UP), 0x4E);      // throttle +

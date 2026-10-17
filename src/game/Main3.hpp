@@ -58,6 +58,8 @@ public:
         m_padRudder = rudder;
     }
     bool paused() const { return m_paused; }
+    // Sideways walking on foot (the original has none), -1 = left, 1 = right, analog
+    void setStrafe(float s) { m_strafe = s; }
 
     // Told when the window layout changes: true = the cockpit with the instrument panel,
     // false = the full screen view (so the panel can be drawn or cleared)
@@ -147,8 +149,8 @@ private:
     void dampchute();
     void moveme();
     void moveobs();
-    void step(i16 stepsz);
-    void goodstep(i16 stepsz);
+    void step(i16 stepsz, i16 side = 0);
+    void goodstep(i16 stepsz, i16 side = 0);
     void bouncevert();
     void killss();
     void set5dbits();
@@ -252,6 +254,7 @@ private:
     static constexpr int GNPTS = engine::F3dVec::GNPTS;
     bool m_done = false;
     bool m_paused = false;
+    float m_strafe = 0;
     bool m_mapActive = false;    // maploop is running
     bool m_mapCockpit = false;   // it was started from the cockpit, which has to come back
 };
