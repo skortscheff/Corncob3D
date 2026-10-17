@@ -84,6 +84,18 @@ void Main3::objroutine(u16 type, u16 si, u16 di, bool carry) {
     case 27:  // gmdest: a ground missile site
         gmdest(si, di, carry);
         break;
+    case 20:  // bombtim
+        bombtim(si, carry);
+        break;
+    case 21:  // mistim
+        mistim(si, carry);
+        break;
+    case 30:  // bdest: a bullet
+        bdest(si, di, carry);
+        break;
+    case 32:  // crtrtim: a crater
+        crtrtim(si, carry);
+        break;
     case 29:  // donothing
     case 33:
     case 35: case 36: case 37: case 38: case 39:

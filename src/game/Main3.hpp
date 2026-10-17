@@ -250,11 +250,21 @@ private:
     void soundToggle();
 
     // ---- hooks owned by later phases ----
-    void bulstrt() {}                         // Phase 5
-    bool strtmis() { return true; }           // Phase 5 (true = failed)
-    void strtbomb() {}                        // Phase 5
-    void bulmov() {}                          // Phase 5
-    void initnumbers() {}                     // Phase 5
+    void initnumbers() {}                     // Phase 5d
+
+    // ---- the weapons (Main3Weapons.cpp) ----
+    bool getobsvec(u16 si);                   // true = the observer is too far
+    bool findbul(u16& si);
+    void bulstrt();
+    void bobjmov(u16 si);
+    void bulmov();
+    void bdest(u16 si, u16 di, bool carry);
+    bool strtmis();                           // true = no room
+    void mistim(u16 si, bool carry);
+    bool strtbomb();
+    bool strtbomb1(u16 src);
+    void bombtim(u16 si, bool carry);
+    void crtrtim(u16 si, bool carry);
 
     GameState& m_g;
     engine::F3dVec& m_eng;

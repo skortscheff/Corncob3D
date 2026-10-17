@@ -94,8 +94,6 @@ void Main3::propAndWeapons() {
     }
     if (wantBullet && !(UW(M3(bulavg)) > 32)) {   // 32 bullets out?
         SB(M3(homelandflag), 0);
-        voiceoff(1, 0x200);   // the bullet sound
-        voiceon(1, 0x200);
         bulstrt();
     }
 
@@ -178,7 +176,17 @@ void Main3::propAndWeapons() {
     if (plant) {
         clearScn();
         if (B(M3(ejectflag)) != 0 && B(M3(abombsleft)) != 0) {
-            // strtbomb1 and the assassin bomb setup: Phase 5
+            if (!strtbomb1(static_cast<u16>(M3(ox)))) {   // the assassin bomb: planted here, sits on hold
+                const u16 si = static_cast<u16>(W(M3(expobj)));
+                SW(si + 46, 0);
+                SW(si + 48, 0);
+                SW(si + 50, 0);
+                SW(si + 66, 0);                                   // blast radius zero
+                SW(si + 14, -16384);                              // points up
+                SW(si + 24, static_cast<i16>(UW(si + 24) & ~8));  // indestructable for now
+                SW(si + 24, static_cast<i16>(UW(si + 24) | 0x804));   // sits on hold for a minute
+                SB(si + 19, 0);                                   // a class zero object
+            }
             SB(M3(abombsleft), static_cast<u8>(B(M3(abombsleft)) - 1));
         }
     }

@@ -226,6 +226,42 @@ int main(int, char**) {
         CHECK(r.eng.cecode == 0);
     }
 
+    // The weapons: the guns (space), a missile (c), a bomb (b)
+    {
+        Run r("MORNING");
+        CHECK(r.ok);
+        auto countType = [&](int type) {
+            int n = 0;
+            for (int k = 0; k < 320; k++) {
+                const uint32_t o = d::strtexp::exps + 74u * k;
+                if (r.gs.w(o + 24) != 0 && r.gs.w(o + 72) == type) n++;
+            }
+            return n;
+        };
+        auto liveBullets = [&]() {
+            int n = 0;
+            for (uint32_t o = d::defobjs::bullets + 74; o < d::defobjs::bptrmx; o += 74)
+                if (r.gs.w(o + 24) != 0) n++;
+            return n;
+        };
+        r.fly(30, {});
+        r.fly(10, {{0, true, 0x39}, {9, false, 0x39}});   // the space bar
+        CHECK(liveBullets() > 0);
+        CHECK(r.gs.w(d::m3::bulavg) > 0);
+        r.fly(6, {{0, true, 0x2E}, {5, false, 0x2E}});    // 'c': a missile
+        CHECK(countType(21) > 0);
+        CHECK(r.gs.w(d::m3::misavg) > 0);
+        const int bombs = r.gs.b(d::m3::nbombs);
+        r.fly(4, {{0, true, 0x30}, {1, false, 0x30}});    // 'b': a bomb, on the key release
+        CHECK(countType(20) > 0);
+        CHECK(r.gs.b(d::m3::nbombs) == bombs - 1);
+        r.fly(300, {});                                    // the bomb falls and blows up; the bullets expire
+        CHECK(countType(20) == 0);
+        CHECK(countType(32) > 0);                          // a crater where it fell
+        CHECK(liveBullets() == 0);
+        CHECK(r.eng.cecode == 0);
+    }
+
     if (failures == 0) std::printf("test_flight: all passed\n");
     return failures ? 1 : 0;
 }
