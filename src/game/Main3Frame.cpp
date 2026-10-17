@@ -217,8 +217,7 @@ void Main3::drawWorld() {
         klaSound();
         initnumbers();
         bulmov();
-        m_world.expmovPrime();   // STRTEXP expmov, the priming half; the movement half is Phase 5
-        expmovFull();
+        expmov();                // STRTEXP expmov: primes the new timed objects, then moves them
         SB(M3(onrunwayflag), 0);   // this flag must be recalculated every frame
         SD(M3(zground), 0);        // default ground height is zero
         SD(M3(myzground), 0);

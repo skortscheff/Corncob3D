@@ -52,6 +52,7 @@ add_executable(corncob3d
     src/game/Main3Objects.cpp
     src/game/Main3Panel.cpp
     src/game/Main3Sound.cpp
+    src/game/Main3Timed.cpp
     src/render/EgaScreen.cpp
     src/assets/Assets.cpp
     src/render/FrameBuffer.cpp
@@ -91,7 +92,7 @@ add_test(NAME world COMMAND test_world)
 add_executable(test_flight tests/test_flight.cpp
     src/game/World.cpp src/game/Keyboard.cpp src/game/Main3.cpp src/game/Main3Flight.cpp
     src/game/Main3Ground.cpp src/game/Main3Frame.cpp src/game/Main3Misc.cpp src/game/Main3Map.cpp src/game/Main3Objects.cpp
-    src/game/Main3Panel.cpp src/game/Main3Sound.cpp src/game/Inst.cpp src/audio/Sound.cpp src/audio/Opl.cpp
+    src/game/Main3Panel.cpp src/game/Main3Sound.cpp src/game/Main3Timed.cpp src/game/Inst.cpp src/audio/Sound.cpp src/audio/Opl.cpp
     src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/engine/F3dObj.cpp src/render/EgaScreen.cpp)
 target_include_directories(test_flight PRIVATE src/)
 target_compile_definitions(test_flight PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")

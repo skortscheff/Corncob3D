@@ -62,7 +62,34 @@ void Main3::objroutine(u16 type, u16 si, u16 di, bool carry) {
     case 28:  // odest: the plane the pilot flies
         odest(si, di, carry);
         break;
-    default:  // the rest of the objects belong to Phase 5
+    case 3:   // fdestrdr: the radar
+        fdestrdr(si, di, carry);
+        break;
+    case 8:   // shardtim
+    case 9:
+        shardtim(si, carry);
+        break;
+    case 10:  // incendtim
+        incendtim(si, carry);
+        break;
+    case 18:  // pufftim: nothing
+        break;
+    case 19:  // boomtim
+        boomtim(si);
+        break;
+    case 25:  // flttim
+    case 26:
+        flttim(si, carry);
+        break;
+    case 27:  // gmdest: a ground missile site
+        gmdest(si, di, carry);
+        break;
+    case 29:  // donothing
+    case 33:
+    case 35: case 36: case 37: case 38: case 39:
+        SW(si + 52, 32000);   // don't let it run down
+        break;
+    default:  // the rest of the objects belong to Phase 5b-5d
         break;
     }
 }
@@ -234,17 +261,6 @@ void Main3::obj5datim(u16 si, u16 di, bool carry) {
     }
 }
 
-// DEFOBJS.ASM fdest: a friendly object takes a hit. Only the not-destroyed half is needed now;
-// the explosion pieces (strtflt, strtshard) are Phase 5.
-void Main3::fdest(u16 si, u16 di, bool carry) {
-    (void)di;
-    if (!carry) {
-        SW(si + 52, add16(W(si + 52), 1));   // check our time on earth
-        return;
-    }
-    // (destruction: Phase 5)
-}
-
 // DEFOBJS.ASM odest: the plane the pilot flies
 void Main3::odest(u16 si, u16 di, bool carry) {
     if (!carry) {
@@ -271,13 +287,14 @@ void Main3::odest(u16 si, u16 di, bool carry) {
     SW(si + 50, 0);
     SW(si + 8, 100);
     SB(M3(omniflag), 0);
-    // (the flotsam and shards of the explosion: Phase 5)
+    strtflt(si, 15);
+    strtshard(si, 15);
     SW(si + 8, 0);
     SW(si + 10, 0);
     SB(M3(freezeflag), 0xFF);
     SW(M3(rpm), 20);
     funeral5d(true);   // replace obj5d with an obj5da
-    // (bigboom: Phase 7)
+    bigboom();         // plane crash
 }
 
 // DEFOBJS.ASM funeral5d: takes out object 5d and starts a nice parked plane

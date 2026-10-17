@@ -136,6 +136,8 @@ int main(int argc, char* argv[]) {
     // --fps <n>:               game frames per second, 5-60 (default 20)
     // --keyscript "<f>+<hex>;<f>-<hex>": scripted key presses (PC scan codes) for screenshot runs
     // --training:              a training mission: no theater file, the permanent objects of initperms
+    // --spawn-hit <n>:         a development aid: a ground missile site appears ahead of the plane at
+    //                          frame 1 and is destroyed at frame n (to look at the explosion pieces)
     const char* shotPath = nullptr;
     const char* introShots = nullptr;
     const char* theater = "MORNING";
@@ -146,6 +148,7 @@ int main(int argc, char* argv[]) {
     int hd = 1;
     int shotFrames = 8;
     int fps = 20;   // game frames per second (the original: 10-20, depending on the machine)
+    int spawnHitFrame = -1;
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) shotPath = argv[++i];
         else if (std::strcmp(argv[i], "--theater") == 0 && i + 1 < argc) theater = argv[++i];
@@ -157,7 +160,9 @@ int main(int argc, char* argv[]) {
         else if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) shotFrames = std::max(1, std::atoi(argv[++i]));
         else if (std::strcmp(argv[i], "--fps") == 0 && i + 1 < argc) fps = std::clamp(std::atoi(argv[++i]), 5, 60);
         else if (std::strcmp(argv[i], "--keyscript") == 0 && i + 1 < argc) keyscript = argv[++i];
+        else if (std::strcmp(argv[i], "--spawn-hit") == 0 && i + 1 < argc) spawnHitFrame = std::max(2, std::atoi(argv[++i]));
     }
+    uint16_t spawnedSite = 0;
 
     init_sin_table();
 
@@ -257,6 +262,17 @@ int main(int argc, char* argv[]) {
         // a 60 Hz time step the thrust of one frame is smaller than that loss and the plane never
         // gets going. Frames therefore start only once enough timer ticks have passed.
         bool going = true;
+        if (spawnHitFrame >= 0 && frame == 1 && !spawnedSite) {   // --spawn-hit: a site ahead of the plane
+            const uint32_t kbuf = d::m3::kbuf, ox = d::m3::ox;
+            for (int k = 0; k < 9; k++) gs.setW(kbuf + 2 * k, gs.w(ox + 2 * k));
+            gs.setDw(kbuf + 4, gs.dw(ox + 4) + 4000);
+            gs.setDw(kbuf + 8, 0);
+            world.strtperm(static_cast<uint16_t>(kbuf), static_cast<uint16_t>(d::defobjs::gms), 0, spawnedSite);
+        }
+        if (spawnedSite && frame == spawnHitFrame && clock.frmticks >= minFrameTicks) {   // ... and its destruction
+            for (int k = 0; k < 40 && gs.w(spawnedSite + 72) == 27; k++) game.objroutine(27, spawnedSite, 0xFFFF, true);
+            spawnHitFrame = -1;
+        }
         if (clock.frmticks >= minFrameTicks) {
             going = game.frame();
             frame++;

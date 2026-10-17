@@ -10,10 +10,15 @@ Faithful port of the DOS game (MASM source in this repo) to C++17 / SDL2. Origin
 - **Phase 3** the main loop (`3.ASM`): flight model, keyboard emulation, collisions, plane/tower/runway
   routines, map mode, remote tail view, training-mission start (`initperms`).
 - **Phase 4** instruments, buttons, damage bars, help screens.
+- **Phase 5a** timed-object engine and explosions (`src/game/Main3Timed.cpp`): `objmov`, `expmov` (prime + move
+  in one loop, as the original), flotsam, shards, incendiaries, puffs, booms with sound, and the destroy paths
+  `fdest`, `fdestrdr`, `gmdest`, `odest`'s explosion. Wired into the type table (types 3, 8-10, 18, 19, 25-27,
+  29, 33, 35-39). `--spawn-hit <n>` (main.cpp) is a dev aid that spawns a missile site ahead and destroys it at
+  frame n. Checked by ctest (`flight`) and by screenshots (smoke, fireballs, debris).
 - **Phase 7 (part)** AdLib sound effects through ymfm.
 - **Extra** Xbox pad: dual-stick scheme for flying and for walking (strafe, look).
 
-## Remaining (next up: Phase 5a)
+## Remaining (next up: Phase 5b)
 
 ### Step 0: verification setup (DONE, see the results at the end)
 - Install DOSBox and run the shipped `3.EXE` as a timing/behaviour reference.
@@ -21,9 +26,10 @@ Faithful port of the DOS game (MASM source in this repo) to C++17 / SDL2. Origin
   enemies a shareware mission uses.
 
 ### Phase 5: combat and timed objects (`STRTEXP.ASM`, about 5,300 lines), in four steps
-- **5a timed-object engine and explosions:** `objmov` / `expmov`; flotsam (`strtflt`, `flttim`), shards,
-  incendiaries, booms and puffs; fill in the Phase 3 destroy paths (`fdest`, `odest`, `funeral5d`, crash
-  and wreck visuals). Done when a crash or a hit shows debris, fire and booms with sound.
+- **5a (DONE)** timed-object engine and explosions: `objmov` / `expmov`; flotsam (`strtflt`, `flttim`), shards,
+  incendiaries, booms and puffs; the destroy paths (`fdest`, `odest`, `gmdest`).
+  Not in 5a, left for later steps: `mandest`, `bigdest`/`hqtim` (5c), `strtbomb1`/`bombtim`/`mistim` (5b).
+  Note: the original never increments `nflt` (only `flttim` decrements it), so the flotsam cap never bites.
 - **5b your weapons:** guns (`bulstrt`, `bulmov`, `shelltim`), missiles (`strtmis`, `mistim`), bombs
   (`strtbomb`, `bombtim`); hit detection and damage; ammo counters.
 - **5c enemies and mission objects**, ordered by the theater count: ground missile sites and AA, death

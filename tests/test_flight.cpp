@@ -185,6 +185,47 @@ int main(int, char**) {
         CHECK(r.eng.cecode == 0);
     }
 
+    // A ground missile site destroyed: flotsam and shards fly (objmov), the flotsam burns out, the
+    // shards stay on the ground, the wreck is a smoking non-destructable thing, a boom is sounded
+    {
+        Run r("MORNING");
+        CHECK(r.ok);
+        r.fly(30, {});
+        auto countType = [&](int type) {
+            int n = 0;
+            for (int k = 0; k < 320; k++) {
+                const uint32_t o = d::strtexp::exps + 74u * k;
+                if (r.gs.w(o + 24) != 0 && r.gs.w(o + 72) == type) n++;
+            }
+            return n;
+        };
+        uint16_t site = 0;
+        CHECK(!r.world.strtperm(static_cast<uint16_t>(d::m3::ox), static_cast<uint16_t>(d::defobjs::gms), 0, site));
+        r.fly(2, {});   // joins the near table
+        CHECK(r.gs.w(site + 72) == 27);
+        const int ndest = r.gs.w(d::m3::ndest);
+        for (int k = 0; k < 40 && r.gs.w(site + 72) == 27; k++) r.game.objroutine(27, site, 0xFFFF, true);
+        CHECK(r.gs.w(site + 72) == 33);                       // a smoking thing now
+        CHECK(r.gs.w(site + 24) == 0x11);
+        CHECK(r.gs.w(d::m3::ndest) == ndest + 1);
+        const int flotsam = countType(25) + countType(26);
+        CHECK(flotsam > 0);
+        CHECK(countType(8) + countType(9) == 0);              // (the site makes no shards)
+        // a friendly (the radar) falls apart into flotsam and shards
+        uint16_t radar = 0;
+        CHECK(!r.world.strtperm(static_cast<uint16_t>(d::m3::ox), static_cast<uint16_t>(d::defobjs::objrdr), 0, radar));
+        r.fly(2, {});   // (it sits on the plane, which may already have flattened it)
+        for (int k = 0; k < 40 && r.gs.w(radar + 72) == 3; k++) r.game.objroutine(3, radar, 0xFFFF, true);
+        CHECK(r.gs.w(radar + 72) == 33);
+        CHECK(countType(8) + countType(9) > 0);
+        r.fly(1, {});
+        CHECK(r.eng.cecode == 0);
+        r.fly(250, {});                                       // 12 seconds later
+        CHECK(countType(25) + countType(26) == 0);            // the flotsam is gone
+        CHECK(countType(8) + countType(9) > 0);               // the shards lie where they fell
+        CHECK(r.eng.cecode == 0);
+    }
+
     if (failures == 0) std::printf("test_flight: all passed\n");
     return failures ? 1 : 0;
 }

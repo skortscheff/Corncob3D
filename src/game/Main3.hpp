@@ -196,7 +196,27 @@ private:
     void placeplane(u16 si);
     void obj5datim(u16 si, u16 di, bool carry);
     void fdest(u16 si, u16 di, bool carry);
+    void fdestrdr(u16 si, u16 di, bool carry);
+    void gmdest(u16 si, u16 di, bool carry);
     void odest(u16 si, u16 di, bool carry);
+
+    // ---- STRTEXP.ASM: the timed objects and the explosions (Main3Timed.cpp) ----
+    bool objmov(u16 si);                          // true = hit the ground
+    void expmov();
+    bool startPiece(u16 tmpl, u16 src, u16& neu);
+    i16 spread(u16 range);
+    bool strtflt(u16 src, u16 count);             // true = no room
+    bool strtincend(u16 src, u16 count);
+    bool strtshard(u16 src, u16 count);
+    bool strtpuff(u16 src);
+    bool strtboom(u16 src);
+    void flttim(u16 si, bool carry);
+    void incendtim(u16 si, bool carry);
+    void shardtim(u16 si, bool carry);
+    void boomtim(u16 si);
+    u8 hitStrength(u16 di) const;
+    bool fdestcheck(u16 si, u16 di, bool planeKills);
+    void qincfdest(u16 di);
     void funeral5d(bool wrecked);
     void towertim(u16 si, bool carry);
     void homedetect(u16 si);
@@ -233,7 +253,6 @@ private:
     void bulstrt() {}                         // Phase 5
     bool strtmis() { return true; }           // Phase 5 (true = failed)
     void strtbomb() {}                        // Phase 5
-    void expmovFull() {}                      // Phase 5: movement of the timed objects
     void bulmov() {}                          // Phase 5
     void initnumbers() {}                     // Phase 5
 
