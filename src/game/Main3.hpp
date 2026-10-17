@@ -79,9 +79,16 @@ public:
     // What 3.ASM does once the loop is over, before the result file is written: the planes lost lose the
     // kill-me-tough ones (they were suicide missions), and the status is patched for them
     void finishResults();
+    // 3.ASM at the end of a combat mission: the objects go back into the tiles and the universe is written out,
+    // with what was destroyed (the history of the theater)
+    std::vector<uint8_t> saveUniverse();
     // The result block the original writes to 3.res (nresbytes = 140 bytes from missionstatus on), which
     // the tower reads to tally the mission
     std::vector<uint8_t> resultBytes() const;
+    // The control tower and the boss key: what the F keys and the tower door ask for. The callback shows the screen
+    // and, for Info while in the plane, may choose a mission: it fills start with x, y, z and the yaw and returns true.
+    enum class TowerKind { Boss, Info, Score, Detail };
+    void onTower(std::function<bool(TowerKind kind, bool onFoot, int32_t* start)> f) { m_tower = std::move(f); }
     // Told when the plane crashes: the screen goes red and shakes (about 1.8 seconds)
     void onCrashScreen(std::function<void()> f) { m_crashScreen = std::move(f); }
 
@@ -339,6 +346,8 @@ private:
     std::function<void(bool)> m_viewChanged;
     std::function<void(int)> m_showImage;
     std::function<void()> m_crashScreen;
+    std::function<bool(TowerKind, bool, int32_t*)> m_tower;
+    void dotower();
     u16 m_holdColors = 0;
     bool m_padActive = false;
     float m_padRoll = 0, m_padPitch = 0, m_padRudder = 0;

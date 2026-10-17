@@ -195,6 +195,32 @@ bool World::readuniv(const std::vector<uint8_t>& file) {
     return true;
 }
 
+// 3.ASM: writeuniv - every tile as a header and its objects (the template index goes out xor'ed with the
+// x and y words, as readuniv undoes), then the twelve bytes of the start position
+std::vector<uint8_t> World::writeuniv() {
+    std::vector<uint8_t> out;
+    for (int y = 0; y < NTILESY; y++) {
+        for (int x = 0; x < NTILESX; x++) {
+            SW(CURTILEX, static_cast<i16>(x));
+            SW(CURTILEY, static_cast<i16>(y));
+            fillheader();
+            for (int k = 0; k < NHEADERBYTES; k++) out.push_back(B(HEADER + static_cast<u32>(k)));
+            const u16 seg = gettileadr();
+            const int count = static_cast<u16>(W(HEADERSZ));
+            for (int k = 0; k < count; k++) {
+                const u32 at = static_cast<u32>(k) * NBYTEOBJ;
+                std::vector<uint8_t> rec(NBYTEOBJ);
+                for (int b = 0; b < NBYTEOBJ; b++) rec[b] = segB(seg, at + b);
+                const u16 w21 = static_cast<u16>(segW(seg, at + 21) ^ segW(seg, at + 4) ^ segW(seg, at + 2));
+                rec[21] = static_cast<uint8_t>(w21 & 0xFF);
+                rec[22] = static_cast<uint8_t>(w21 >> 8);
+                out.insert(out.end(), rec.begin(), rec.end());
+            }
+        }
+    }
+    for (int k = 0; k < 12; k++) out.push_back(B(STARTCOORDS + static_cast<u32>(k)));
+    return out;
+}
 // 3.ASM: readunivfile
 bool World::readunivfile(const std::string& towersPath, const std::string& univPath) {
     std::vector<uint8_t> f;

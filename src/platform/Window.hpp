@@ -3,6 +3,7 @@
 
 #pragma once
 #include <SDL.h>
+#include <string>
 #include <vector>
 
 namespace corncob {
@@ -34,6 +35,15 @@ public:
     };
     const std::vector<KeyEvent>& keyEvents() const { return m_keyEvents; }
 
+    // Menu input: every key press including auto-repeats (SDL keycode, shift held), and the text typed
+    // (SDL_StartTextInput must be on for the text)
+    struct KeyPress {
+        SDL_Keycode code;
+        bool shift;
+    };
+    const std::vector<KeyPress>& keyPresses() const { return m_keyPresses; }
+    const std::string& typedText() const { return m_typed; }
+
     bool shouldQuit() const { return m_quit; }
     void setQuit() { m_quit = true; }
 
@@ -48,6 +58,8 @@ private:
     bool m_quit = false;
     SDL_Scancode m_lastKey = SDL_SCANCODE_UNKNOWN;
     std::vector<KeyEvent> m_keyEvents;
+    std::vector<KeyPress> m_keyPresses;
+    std::string m_typed;
 };
 
 } // namespace corncob

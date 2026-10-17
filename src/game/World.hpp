@@ -63,6 +63,8 @@ public:
     // Parses the 'X ...' parameter line at [kbuf]
     void readunivparams();
     bool readuniv(const std::vector<uint8_t>& file);
+    // 3.ASM writeuniv: the universe as a 3univ.dat file (the tiles must have been flushed first)
+    std::vector<uint8_t> writeuniv();
 
     // ---- F3DVEC.ASM: tiles ----
     u16 gettileadr();                   // curtilex/curtiley -> segment (offset 0)

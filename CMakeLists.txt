@@ -60,6 +60,17 @@ add_executable(corncob3d
     src/ui/Intro.cpp
     src/ui/MissionEnd.cpp
     src/ui/MissionPictures.cpp
+    src/ui/TextScreen.cpp
+    src/ui/Widgets.cpp
+    src/ui/GameText.cpp
+    src/ui/Settings.cpp
+    src/ui/MusicBox.cpp
+    src/ui/Scoring.cpp
+    src/ui/Career.cpp
+    src/ui/FrontEnd.cpp
+    src/ui/TowerScreen.cpp
+    src/game/MissionRunner.cpp
+    src/game/TheaterFiles.cpp
 )
 
 # The Yamaha OPL2 emulator (ymfm, BSD 3-clause)
@@ -115,6 +126,13 @@ target_include_directories(test_rol PRIVATE src/)
 target_compile_definitions(test_rol PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
 target_link_libraries(test_rol PRIVATE SDL2::SDL2 ymfm)
 add_test(NAME rol COMMAND test_rol)
+add_executable(test_career tests/test_career.cpp src/ui/Career.cpp src/ui/Scoring.cpp)
+target_include_directories(test_career PRIVATE src/)
+add_test(NAME career COMMAND test_career)
+add_executable(test_theaters tests/test_theaters.cpp src/game/TheaterFiles.cpp)
+target_include_directories(test_theaters PRIVATE src/)
+target_compile_definitions(test_theaters PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
+add_test(NAME theaters COMMAND test_theaters)
 
 if(WIN32)
     # Windowed app (no console) in release; keep the console in debug for logging

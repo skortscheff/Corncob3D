@@ -1,36 +1,27 @@
-// main.cpp - Corncob 3-D (Windows/SDL2 port) entry point and main loop
+// main.cpp - Corncob 3-D (Windows/SDL2 port) entry point
 //
-// Status: Phase 3. The intro, loading screen and instrument panel are real, the universe is the
-// theater the player picked (DEF/<name>.CCT and .TWR, loaded the way readunivfile does) and the
-// game itself is the ported 3.ASM main loop (game/Main3): the player starts on foot at the
-// airstrip and the first plane within reach takes them, flies with the original's flight model,
-// and ejects, crashes and lands as the original does. Instruments, weapons, sound and the
-// front end come in later phases.
+// The game starts like the original's CORNCOB.BAT: the title sequence (CC3D1, CCTITLE), the menu program
+// (ui/FrontEnd: MOAG), and from its menus the missions (game/MissionRunner: 3.EXE), then back to the menus.
+// The command line has development aids on top of that, mostly to fly or look at one thing unattended.
 
 #include "assets/Assets.hpp"
 #include "audio/Opl.hpp"
 #include "audio/RolPlayer.hpp"
-#include "audio/Sound.hpp"
-#include "core/AsmMath.hpp"
-#include "engine/AsmTables.hpp"
-#include "engine/F3dVec.hpp"
-#include "game/GameState.hpp"
-#include "game/Inst.hpp"
-#include "game/Keyboard.hpp"
-#include "game/Main3.hpp"
-#include "game/TickClock.hpp"
-#include "game/World.hpp"
+#include "game/MissionRunner.hpp"
 #include "math/Trig.hpp"
-#include "platform/Input.hpp"
 #include "platform/Window.hpp"
-#include "render/EgaScreen.hpp"
+#include "ui/FrontEnd.hpp"
 #include "ui/Intro.hpp"
 #include "ui/MissionEnd.hpp"
-#include "DGroup.hpp"
+#include "ui/MusicBox.hpp"
+#include "ui/Scoring.hpp"
+#include "ui/Settings.hpp"
+#include "ui/TextScreen.hpp"
+#include "ui/TowerScreen.hpp"
+#include "game/TheaterFiles.hpp"
 
 #include <SDL.h>
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -38,394 +29,223 @@
 #include <vector>
 
 using namespace corncob;
-namespace d = corncob::dgroup;
-using engine::i16;
-using engine::u16;
 
 namespace {
 
-// --keyscript "30+0D;60-0D": at frame 30 press the PC scan code 0D, at frame 60 release it
-struct ScriptEvent {
-    int frame;
-    bool down;
-    uint8_t code;
-};
-
-std::vector<ScriptEvent> parseScript(const char* s) {
-    std::vector<ScriptEvent> out;
-    while (s && *s) {
-        char* end = nullptr;
-        const long frame = std::strtol(s, &end, 10);
-        if (end == s || (*end != '+' && *end != '-')) break;
-        const bool down = *end == '+';
-        const long code = std::strtol(end + 1, &end, 16);
-        out.push_back({static_cast<int>(frame), down, static_cast<uint8_t>(code)});
-        s = end;
-        while (*s == ';' || *s == ' ' || *s == ',') s++;
+// the music of a song file, on its own: until Esc, or rendered into a WAV file
+int musicOnly(Window& window, const char* song, const char* wavOut, int wavSeconds) {
+    Bnk bank;
+    RolSong s;
+    if (!bank.load(assetPath("CCMUSIC.BNK")) || !s.load(assetPath(song))) {
+        std::fprintf(stderr, "Can't read the song or CCMUSIC.BNK\n");
+        return 1;
     }
-    return out;
-}
-
-// Xbox controller, modern dual-stick scheme with one layout for the plane and one on foot. The
-// buttons press the keys of the original, so a button does what its key does.
-//
-//   In the plane
-//     left stick    pitch (pull back = nose up) and roll
-//     right stick   look: flick left / right / up for those views, down for the rear view
-//                   (the original's control key + cursor keys; it springs back when released)
-//     LB / RB       rudder left / right          RT / LT   throttle up / down (D-pad up / down too)
-//     A guns   X missiles   B bomb   Y flaps     L3 brakes   R3 autopilot
-//     D-pad left rear window   D-pad right ground detail dots
-//   On foot
-//     left stick    up = run forward, down = step back, left / right = strafe
-//     right stick   look around (turn and tilt the view)
-//     A             pull the ripcord while falling
-//   Both          Back = eject / step out    Start = pause
-void updatePad(const Input& in, DosKeyboard& kbd, game::Main3& game, GameState& gs) {
-    static bool held[32] = {};
-    auto key = [&](int slot, bool down, uint8_t code) {
-        if (down != held[slot]) {
-            held[slot] = down;
-            kbd.key(code, down, 0);
+    Opl opl;
+    RolPlayer player(opl, bank);
+    player.start(s, wavOut == nullptr);
+    if (wavOut) {   // write the first n seconds as a mono 16 bit WAV
+        const int rate = Opl::sampleRate();
+        const int total = rate * wavSeconds;
+        std::vector<int16_t> pcm(static_cast<size_t>(total));
+        int done = 0;
+        while (done < total) {
+            const int n = std::min(rate / 100, total - done);
+            player.update(0.01);
+            opl.render(pcm.data() + done, n);
+            done += n;
         }
-    };
-    const bool pad = in.hasGamepad();
-    auto axis = [&](SDL_GameControllerAxis a) { return pad ? in.padAxis(a) : 0.0f; };
-    auto btn = [&](SDL_GameControllerButton b) { return pad && in.padButton(b); };
-    const bool onFoot = gs.b(d::m3::ejectflag) != 0;
-    const float lx = axis(SDL_CONTROLLER_AXIS_LEFTX), ly = axis(SDL_CONTROLLER_AXIS_LEFTY);
-    const float rx = axis(SDL_CONTROLLER_AXIS_RIGHTX), ry = axis(SDL_CONTROLLER_AXIS_RIGHTY);
-
-    game.setStrafe(onFoot ? lx : 0.0f);
-    if (onFoot) game.setPad(pad, rx, -ry, 0.0f);   // turn and look (stick up = look up)
-    else game.setPad(pad, lx, ly, 0.0f);                                          // fly
-
-    key(0, axis(SDL_CONTROLLER_AXIS_TRIGGERRIGHT) > 0.3f || btn(SDL_CONTROLLER_BUTTON_DPAD_UP), 0x4E);      // throttle +
-    key(1, axis(SDL_CONTROLLER_AXIS_TRIGGERLEFT) > 0.3f || btn(SDL_CONTROLLER_BUTTON_DPAD_DOWN), 0x4A);     // throttle -
-    key(2, btn(SDL_CONTROLLER_BUTTON_A), 0x39);                                                              // space: guns / ripcord
-    key(3, btn(SDL_CONTROLLER_BUTTON_X), 0x2E);                                                              // c: missiles
-    key(4, btn(SDL_CONTROLLER_BUTTON_B), 0x30);                                                              // b: bomb
-    key(5, btn(SDL_CONTROLLER_BUTTON_Y), 0x21);                                                              // f: flaps
-    key(6, !onFoot && btn(SDL_CONTROLLER_BUTTON_LEFTSTICK), 0x34);                                           // .: brakes
-    key(7, !onFoot && btn(SDL_CONTROLLER_BUTTON_RIGHTSTICK), 0x1E);                                          // a: autopilot
-    key(8, btn(SDL_CONTROLLER_BUTTON_DPAD_LEFT), 0x13);                                                      // r: rear window
-    key(9, btn(SDL_CONTROLLER_BUTTON_DPAD_RIGHT), 0x22);                                                     // g: ground dots
-    key(10, btn(SDL_CONTROLLER_BUTTON_BACK), 0x12);                                                          // e: eject / step out
-    key(12, btn(SDL_CONTROLLER_BUTTON_START), 0x19);                                                         // p: pause
-    key(13, onFoot && ly < -0.5f, 0x4C);                                                                     // run forward
-    key(14, onFoot && ly > 0.5f, 0x52);                                                                      // step back
-    key(15, !onFoot && btn(SDL_CONTROLLER_BUTTON_LEFTSHOULDER), 0x2C);                                       // z: rudder left
-    key(16, !onFoot && btn(SDL_CONTROLLER_BUTTON_RIGHTSHOULDER), 0x2D);                                      // x: rudder right
-    // the right stick as the look keys: control + a cursor key (or keypad 5 for behind)
-    const bool flick = !onFoot && std::max(std::fabs(rx), std::fabs(ry)) > 0.6f;
-    const bool horiz = std::fabs(rx) >= std::fabs(ry);
-    key(17, flick, 0x1D);
-    key(18, flick && horiz && rx < 0, 0x4B);
-    key(19, flick && horiz && rx > 0, 0x4D);
-    key(20, flick && !horiz && ry < 0, 0x48);
-    key(21, flick && !horiz && ry > 0, 0x4C);
+        if (std::FILE* f = std::fopen(wavOut, "wb")) {
+            auto w32 = [&](uint32_t v) { std::fwrite(&v, 4, 1, f); };
+            auto w16 = [&](uint16_t v) { std::fwrite(&v, 2, 1, f); };
+            std::fwrite("RIFF", 1, 4, f);
+            w32(36 + total * 2);
+            std::fwrite("WAVEfmt ", 1, 8, f);
+            w32(16); w16(1); w16(1); w32(rate); w32(rate * 2); w16(2); w16(16);
+            std::fwrite("data", 1, 4, f);
+            w32(total * 2);
+            std::fwrite(pcm.data(), 2, pcm.size(), f);
+            std::fclose(f);
+        }
+        return 0;
+    }
+    if (!opl.open()) return 1;
+    Uint64 prev = SDL_GetPerformanceCounter();
+    const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
+    while (window.pollEvents() && window.lastKey() != SDL_SCANCODE_ESCAPE) {
+        const Uint64 now = SDL_GetPerformanceCounter();
+        player.update((now - prev) / freq);
+        prev = now;
+        SDL_Delay(5);
+    }
+    return 0;
 }
+
 } // namespace
 
 int main(int argc, char* argv[]) {
-    // --screenshot <file.bmp>: skip the intro, run the game for --frames frames, save one, exit
-    // --shot-intro <prefix>:   run intro + loading screen unattended, save one BMP per scene, exit
-    // --skip-intro:            go straight to the loading screen and game
-    // --nosound:               no AdLib sound
-    // --hd <n>:                start at n x 640x350 (HD mode)
-    // --theater <name>:        DEF/<name>.CCT + .TWR to fly over (WHTSANDS, DUSK, MORNING, WASTELND)
-    // --frames <n>:            frames to run before the screenshot (default 8)
-    // --fps <n>:               game frames per second, 5-60 (default 20)
-    // --keyscript "<f>+<hex>;<f>-<hex>": scripted key presses (PC scan codes) for screenshot runs
-    // --training:              a training mission: no theater file, the permanent objects of initperms
-    // --spawn-hit <n>:         a development aid: a ground missile site appears ahead of the plane at
-    //                          frame 1 and is destroyed at frame n (to look at the explosion pieces)
-    // --spawn-enemies:         a development aid: an AA gun, a death ball site, a vehicle site, a mortar, a
-    //                          barrage balloon, a tetrahedron and a bomber site appear around the strip
-    // --play-rol <FILE.ROL>:   play a song of the original music (CCMUSIC.BNK instruments) until Esc
-    // --wav-rol <FILE.ROL> <out.wav> <seconds>: render the start of a song to a WAV file
-    // --end-pictures <hex status> [--death <code>] [--shot-end <prefix>]:
-    //                          show the mission-end pictures for a mission status (as the tower would
-    //                          after a mission), or save them as <prefix>NN.bmp, and exit
-    // --res <file>:            write the result block (3.res) there when the mission ends
-    const char* shotPath = nullptr;
+    // The game:
+    //   --skip-intro               go straight to the menus
+    //   --nosound                  no AdLib sound in the missions (and no music)
+    //   --no-music                 no music in the menus
+    //   --hd <n>                   start missions at n x 640x350 (HD mode)
+    //   --fps <n>                  game frames per second, 5-60 (default 20)
+    //   --save-dir <dir>           where the pilots, theaters and settings are kept
+    // Looking at one thing (development aids):
+    //   --ui-keys "Down,Enter,x"   feed the menus these keys instead of reading the keyboard, and quit when they run out
+    //   --ui-shots <prefix>        save the menu screen as <prefix>NNN.bmp each time a key is wanted
+    //   --theater <name>           fly DEF/<name>.CCT + .TWR directly (WHTSANDS, DUSK, MORNING, WASTELND)
+    //   --training                 fly a training mission directly (--kla n --aaa n --veh n for the enemies)
+    //   --screenshot <file.bmp>    run a mission unattended for --frames frames, save one picture, exit
+    //   --frames <n>               frames to run before the screenshot (default 8)
+    //   --keyscript "<f>+<hex>;<f>-<hex>": scripted key presses (PC scan codes) for screenshot runs
+    //   --spawn-hit <n>            a ground missile site appears ahead of the plane at frame 1 and is destroyed at frame n
+    //   --spawn-enemies            one of each kind of enemy appears around the strip
+    //   --end-pictures <hex status> [--death <code>] [--shot-end <prefix>]: the mission-end pictures for a status
+    //   --tower-test <theater>     the tower information screen of a theater, with --ui-keys / --ui-shots
+    //   --fake-mission <hex status> [--fake-kills o,f,a,s]: the menus get a canned result instead of a flight
+    //   --res <file>               write the result block (3.res) there when a mission ends
+    //   --shot-intro <prefix>      run the title sequence and loading screen unattended, one BMP per scene
+    //   --play-rol <FILE.ROL>      play a song until Esc;  --wav-rol <FILE.ROL> <out.wav> <seconds> renders one
+    MissionRequest rq;
     const char* introShots = nullptr;
-    const char* theater = "MORNING";
-    const char* keyscript = nullptr;
-    bool skipIntro = false;
-    bool noSound = false;
-    bool training = false;
-    int hd = 1;
-    int shotFrames = 8;
-    int fps = 20;   // game frames per second (the original: 10-20, depending on the machine)
-    int spawnHitFrame = -1;
-    int endStatus = -1, deathCode = 0;
-    bool spawnEnemies = false;
+    const char* theater = nullptr;
+    const char* uiKeys = nullptr;
+    const char* uiShots = nullptr;
+    const char* towerTest = nullptr;
+    const char* saveDir = nullptr;
     const char* playRol = nullptr;
     const char* wavRol = nullptr;
     const char* wavOut = nullptr;
-    int wavSeconds = 30;
     const char* shotEnd = nullptr;
-    const char* resPath = nullptr;
+    int fakeStatus = -1;   // --fake-mission: no flight, a canned result (for looking at the reports)
+    int fakeKills[4] = {1, 25, 2, 1};
+    bool skipIntro = false, noMusic = false;
+    bool direct = false;
+    int wavSeconds = 30;
+    int endStatus = -1, deathCode = 0;
     for (int i = 1; i < argc; i++) {
-        if (std::strcmp(argv[i], "--screenshot") == 0 && i + 1 < argc) shotPath = argv[++i];
-        else if (std::strcmp(argv[i], "--theater") == 0 && i + 1 < argc) theater = argv[++i];
-        else if (std::strcmp(argv[i], "--shot-intro") == 0 && i + 1 < argc) introShots = argv[++i];
-        else if (std::strcmp(argv[i], "--skip-intro") == 0) skipIntro = true;
-        else if (std::strcmp(argv[i], "--nosound") == 0) noSound = true;
-        else if (std::strcmp(argv[i], "--training") == 0) training = true;
-        else if (std::strcmp(argv[i], "--hd") == 0 && i + 1 < argc) hd = std::clamp(std::atoi(argv[++i]), 1, 4);
-        else if (std::strcmp(argv[i], "--frames") == 0 && i + 1 < argc) shotFrames = std::max(1, std::atoi(argv[++i]));
-        else if (std::strcmp(argv[i], "--fps") == 0 && i + 1 < argc) fps = std::clamp(std::atoi(argv[++i]), 5, 60);
-        else if (std::strcmp(argv[i], "--keyscript") == 0 && i + 1 < argc) keyscript = argv[++i];
-        else if (std::strcmp(argv[i], "--spawn-hit") == 0 && i + 1 < argc) spawnHitFrame = std::max(2, std::atoi(argv[++i]));
-        else if (std::strcmp(argv[i], "--spawn-enemies") == 0) spawnEnemies = true;
-        else if (std::strcmp(argv[i], "--play-rol") == 0 && i + 1 < argc) playRol = argv[++i];
-        else if (std::strcmp(argv[i], "--wav-rol") == 0 && i + 3 < argc) {
+        const bool more = i + 1 < argc;
+        if (!std::strcmp(argv[i], "--screenshot") && more) { rq.shotPath = argv[++i]; direct = true; }
+        else if (!std::strcmp(argv[i], "--theater") && more) { theater = argv[++i]; direct = true; }
+        else if (!std::strcmp(argv[i], "--shot-intro") && more) introShots = argv[++i];
+        else if (!std::strcmp(argv[i], "--skip-intro")) skipIntro = true;
+        else if (!std::strcmp(argv[i], "--nosound")) { rq.noSound = true; noMusic = true; }
+        else if (!std::strcmp(argv[i], "--no-music")) noMusic = true;
+        else if (!std::strcmp(argv[i], "--training")) { rq.training = true; direct = true; }
+        else if (!std::strcmp(argv[i], "--kla") && more) rq.kla = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--aaa") && more) rq.aaa = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--veh") && more) rq.vehicles = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--hd") && more) rq.hd = std::clamp(std::atoi(argv[++i]), 1, 4);
+        else if (!std::strcmp(argv[i], "--frames") && more) rq.shotFrames = std::max(1, std::atoi(argv[++i]));
+        else if (!std::strcmp(argv[i], "--fps") && more) rq.fps = std::clamp(std::atoi(argv[++i]), 5, 60);
+        else if (!std::strcmp(argv[i], "--keyscript") && more) rq.keyScript = argv[++i];
+        else if (!std::strcmp(argv[i], "--spawn-hit") && more) rq.spawnHitFrame = std::max(2, std::atoi(argv[++i]));
+        else if (!std::strcmp(argv[i], "--spawn-enemies")) rq.spawnEnemies = true;
+        else if (!std::strcmp(argv[i], "--res") && more) rq.resPath = argv[++i];
+        else if (!std::strcmp(argv[i], "--save-dir") && more) saveDir = argv[++i];
+        else if (!std::strcmp(argv[i], "--ui-keys") && more) uiKeys = argv[++i];
+        else if (!std::strcmp(argv[i], "--ui-shots") && more) uiShots = argv[++i];
+        else if (!std::strcmp(argv[i], "--tower-test") && more) towerTest = argv[++i];
+        else if (!std::strcmp(argv[i], "--play-rol") && more) playRol = argv[++i];
+        else if (!std::strcmp(argv[i], "--wav-rol") && i + 3 < argc) {
             wavRol = argv[++i];
             wavOut = argv[++i];
             wavSeconds = std::max(1, std::atoi(argv[++i]));
         }
-        else if (std::strcmp(argv[i], "--end-pictures") == 0 && i + 1 < argc) endStatus = static_cast<int>(std::strtol(argv[++i], nullptr, 16));
-        else if (std::strcmp(argv[i], "--death") == 0 && i + 1 < argc) deathCode = std::atoi(argv[++i]);
-        else if (std::strcmp(argv[i], "--shot-end") == 0 && i + 1 < argc) shotEnd = argv[++i];
-        else if (std::strcmp(argv[i], "--res") == 0 && i + 1 < argc) resPath = argv[++i];
+        else if (!std::strcmp(argv[i], "--end-pictures") && more) endStatus = static_cast<int>(std::strtol(argv[++i], nullptr, 16));
+        else if (!std::strcmp(argv[i], "--death") && more) deathCode = std::atoi(argv[++i]);
+        else if (!std::strcmp(argv[i], "--shot-end") && more) shotEnd = argv[++i];
+        else if (!std::strcmp(argv[i], "--fake-mission") && more) fakeStatus = static_cast<int>(std::strtol(argv[++i], nullptr, 16));
+        else if (!std::strcmp(argv[i], "--fake-kills") && more) std::sscanf(argv[++i], "%d,%d,%d,%d", &fakeKills[0], &fakeKills[1], &fakeKills[2], &fakeKills[3]);
     }
-    uint16_t spawnedSite = 0;
+    if (saveDir) setSaveDirectory(saveDir);
 
     init_sin_table();
 
     Window window;
     if (!window.init()) return 1;
 
-    if (playRol || wavRol) {   // just the music (a development aid until the front end plays it)
-        Bnk bank;
-        RolSong song;
-        if (!bank.load(assetPath("CCMUSIC.BNK")) || !song.load(assetPath(playRol ? playRol : wavRol))) {
-            std::fprintf(stderr, "Can't read the song or CCMUSIC.BNK\n");
-            return 1;
-        }
-        Opl opl;
-        RolPlayer player(opl, bank);
-        player.start(song, playRol != nullptr);
-        if (wavRol) {   // write the first n seconds as a mono 16 bit WAV
-            const int rate = Opl::sampleRate();
-            const int total = rate * wavSeconds;
-            std::vector<int16_t> pcm(static_cast<size_t>(total));
-            int done = 0;
-            while (done < total) {
-                const int n = std::min(rate / 100, total - done);
-                player.update(0.01);
-                opl.render(pcm.data() + done, n);
-                done += n;
-            }
-            if (std::FILE* f = std::fopen(wavOut, "wb")) {
-                auto w32 = [&](uint32_t v) { std::fwrite(&v, 4, 1, f); };
-                auto w16 = [&](uint16_t v) { std::fwrite(&v, 2, 1, f); };
-                std::fwrite("RIFF", 1, 4, f);
-                w32(36 + total * 2);
-                std::fwrite("WAVEfmt ", 1, 8, f);
-                w32(16); w16(1); w16(1); w32(rate); w32(rate * 2); w16(2); w16(16);
-                std::fwrite("data", 1, 4, f);
-                w32(total * 2);
-                std::fwrite(pcm.data(), 2, pcm.size(), f);
-                std::fclose(f);
-            }
-            return 0;
-        }
-        if (!opl.open()) return 1;
-        Uint64 prev = SDL_GetPerformanceCounter();
-        const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
-        while (window.pollEvents() && window.lastKey() != SDL_SCANCODE_ESCAPE) {
-            const Uint64 now = SDL_GetPerformanceCounter();
-            player.update((now - prev) / freq);
-            prev = now;
-            SDL_Delay(5);
-        }
-        return 0;
-    }
+    if (playRol || wavRol) return musicOnly(window, playRol ? playRol : wavRol, wavOut, wavSeconds);
 
     if (endStatus >= 0) {   // just the end-of-mission pictures
         runMissionEnd(window, missionPictures(static_cast<uint16_t>(endStatus), 0, static_cast<uint16_t>(deathCode)), shotEnd);
         return 0;
     }
 
-    if (!shotPath) {
-        std::string prefix = introShots ? introShots : "";
-        if (!skipIntro && runIntro(window, introShots ? prefix.c_str() : nullptr) == IntroResult::Quit)
-            return 0;
-        std::string loadPrefix = prefix + "load";
-        if (runLoadingScreen(window, introShots ? loadPrefix.c_str() : nullptr) == IntroResult::Quit)
-            return 0;
-        if (introShots) return 0;
+    if (towerTest) {   // the tower information of a theater, with the keys of --ui-keys
+        TextScreen::defaultScript(uiKeys ? uiKeys : "", uiShots ? uiShots : "");
+        TheaterInfo info;
+        loadTheaterInfo(assetPath(std::string("DEF/") + towerTest + ".TWR"), info);
+        const TowerChoice c = runTowerInfo(window, info, true);
+        std::printf("tower choice: %d %d %d %d %d\n", c.mission, c.x, c.y, c.z, c.yaw);
+        return 0;
     }
 
-    GameState gs;
-    EgaScreen screen(hd);
-    engine::F3dVec eng(gs, screen);
-    Display display(window.sdlRenderer());
-    EgaImg panel;
-    const bool havePanel = loadImg(assetPath("IMG/3D.IMG"), panel);
-    if (havePanel) screen.drawPanel(panel, 0);
-
-    // The theater MOAG would have left as towers.dat/3univ.dat (3.ASM readunivfile)
-    TickClock clock;
-    DosKeyboard keyboard(gs, clock);
-    game::World world(gs, eng);
-    world.cleanexp();
-    const std::string twr = assetPath(std::string("DEF/") + theater + ".TWR");
-    const std::string cct = assetPath(std::string("DEF/") + theater + ".CCT");
-    if (!training && !world.readunivfile(twr, cct)) {
-        std::fprintf(stderr, "Can't read theater %s (%s)\n", theater, cct.c_str());
-        return 1;
+    if (introShots) {   // the title sequence and the loading screen, unattended
+        const std::string prefix = introShots;
+        if (runIntro(window, prefix.c_str()) == IntroResult::Quit) return 0;
+        runLoadingScreen(window, (prefix + "load").c_str());
+        return 0;
     }
-    eng.readcolors();
-    eng.setcolors(255);
 
-    Opl opl;                         // the AdLib card
-    Sound sound(gs, opl);
-    if (!noSound && opl.open()) sound.initsound(assetPath("3.ADL"));
-    game::Instruments instruments(gs, eng, screen, clock);
-    game::Main3 game(gs, eng, world, keyboard, clock, instruments);
-    if (opl.isOpen()) game.setSound(&sound);
-    game.onViewChange([&](bool cockpit) {
-        if (cockpit && havePanel) screen.drawPanel(panel, 0);   // readimg: the instrument panel
-    });
-    game.onShowImage([&](int n) {   // the help screens: 3Dn.IMG over the whole screen
-        EgaImg img;
-        if (loadImg(assetPath("IMG/3D" + std::to_string(n) + ".IMG"), img)) screen.drawPanel(img, 0);
-    });
-    game.onCrashScreen([&]() {   // 3.ASM crash: the screen fills red and shakes for 18 ticks, then a pause
-        const int s = screen.scale();
-        screen.fillRect(0, 0, 640 * s, 350 * s, 4);
-        if (shotPath) return;   // scripted runs don't wait
-        for (int k = 0; k < 18 + 14; k++) {
-            if (!window.pollEvents()) break;
-            display.present(screen, eng.palette(), 0, 0);
-            SDL_Delay(55);
+    if (direct) {   // one mission, straight away
+        if (!rq.training) {
+            const std::string name = theater ? theater : "MORNING";
+            rq.cctPath = assetPath("DEF/" + name + ".CCT");
+            rq.twrPath = assetPath("DEF/" + name + ".TWR");
         }
-    });
-    game.startUp(!training);
+        runMission(window, rq);
+        return 0;
+    }
 
-    const int minFrameTicks = static_cast<int>(TickClock::FAST_HZ / fps);
-    const std::vector<ScriptEvent> script = parseScript(keyscript);
-    size_t scriptPos = 0;
+    // the game itself: the title, then the menus
+    Settings settings;
+    loadSettings(settings);
+    MusicBox music;
+    const bool haveMusic = !noMusic && !uiKeys && music.init();
+    music.setOn(settings.music);
+    if (!skipIntro && !uiKeys) {
+        if (haveMusic && settings.music) music.playTitle();
+        if (runIntro(window) == IntroResult::Quit) return 0;
+    }
 
-    Input input;
-    input.initJoystick();
-
-    Uint64 prev = SDL_GetPerformanceCounter();
-    const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
-    int frame = 0;
-    bool gameOver = false;
-
-    while (window.pollEvents()) {
-        const Uint64 now = SDL_GetPerformanceCounter();
-        // scripted runs use a fixed 60 Hz clock so that they are repeatable
-        const double dt = shotPath ? 1.0 / 60.0 : std::min((now - prev) / freq, 0.1);
-        prev = now;
-
-        // the timer interrupt first, then the keys that happened during the frame (new9)
-        const int slow = clock.advance(dt);
-        for (int i = 0; i < slow; i++) {   // new08: the 18 Hz tick counts the bullet and missile timers down
-            if (gs.uw(d::m3::bultick) != 0) gs.setW(d::m3::bultick, static_cast<i16>(gs.w(d::m3::bultick) - 1));
-            if (gs.uw(d::m3::mistick) != 0) gs.setW(d::m3::mistick, static_cast<i16>(gs.w(d::m3::mistick) - 1));
-        }
-        const Uint32 nowMs = SDL_GetTicks();
-        for (const Window::KeyEvent& e : window.keyEvents()) {
-            const uint8_t code = DosKeyboard::dosScanCode(e.scancode);
-            const double ago = std::max(0.0, (nowMs - e.timestampMs) / 1000.0) * TickClock::FAST_HZ;
-            keyboard.key(code, e.down, static_cast<uint16_t>(std::min(ago, 60000.0)));
-        }
-        while (scriptPos < script.size() && script[scriptPos].frame <= frame) {
-            keyboard.key(script[scriptPos].code, script[scriptPos].down, 0);
-            scriptPos++;
-        }
-        input.update();
-        updatePad(input, keyboard, game, gs);
-        if (input.isKeyJustDown(SDL_SCANCODE_F11)) {
-            // HD toggle: 1x <-> 2x, panel redrawn into the new pages
-            screen.setScale(screen.scale() == 1 ? 2 : 1);
-            if (havePanel && gs.w(d::m3::ptrgwinf) == static_cast<i16>(d::m3::gwinf)) screen.drawPanel(panel, 0);
-        }
-
-        // The original ran at roughly 10-20 frames per second and its fixed point arithmetic is
-        // tuned for that: a matrix multiply loses a few units to rounding whatever the speed, so at
-        // a 60 Hz time step the thrust of one frame is smaller than that loss and the plane never
-        // gets going. Frames therefore start only once enough timer ticks have passed.
-        bool going = true;
-        if (spawnHitFrame >= 0 && frame == 1 && !spawnedSite) {   // --spawn-hit: a site ahead of the plane
-            const uint32_t kbuf = d::m3::kbuf, ox = d::m3::ox;
-            for (int k = 0; k < 9; k++) gs.setW(kbuf + 2 * k, gs.w(ox + 2 * k));
-            gs.setDw(kbuf + 4, gs.dw(ox + 4) + 4000);
-            gs.setDw(kbuf + 8, 0);
-            world.strtperm(static_cast<uint16_t>(kbuf), static_cast<uint16_t>(d::defobjs::gms), 0, spawnedSite);
-        }
-        if (spawnEnemies && frame == 1) {   // --spawn-enemies: one of each kind, off to the sides of the runway
-            spawnEnemies = false;
-            const uint32_t kbuf = d::m3::kbuf, ox = d::m3::ox;
-            auto spot = [&](int dx, int dy) {
-                for (int k = 0; k < 9; k++) gs.setW(kbuf + 2 * k, gs.w(ox + 2 * k));
-                gs.setDw(kbuf, gs.dw(ox) + dx);
-                gs.setDw(kbuf + 4, gs.dw(ox + 4) + dy);
-                gs.setDw(kbuf + 8, 0);
-            };
-            uint16_t slot;
-            const uint16_t src = static_cast<uint16_t>(kbuf);
-            spot(6000, 3000);   world.strtaa(src, 7);
-            spot(-6000, 3000);  world.strtdbst(src, 7);
-            spot(7000, 8000);   world.strtvest(src, 7);
-            spot(-7000, 8000);  world.strtperm(src, static_cast<uint16_t>(d::defobjs::objmort), 4, slot);
-            spot(-8000, 12000); world.strtperm(src, static_cast<uint16_t>(d::defobjs::objbb), 3, slot);
-            spot(8000, 12000);  world.strtperm(src, static_cast<uint16_t>(d::defobjs::objtet), 0, slot);
-            spot(9000, 3000);   world.strtperm(src, static_cast<uint16_t>(d::defobjs::objbmrst), 5, slot);
-        }
-        if (spawnedSite && frame == spawnHitFrame && clock.frmticks >= minFrameTicks) {   // ... and its destruction
-            for (int k = 0; k < 40 && gs.w(spawnedSite + 72) == 27; k++) game.objroutine(27, spawnedSite, 0xFFFF, true);
-            spawnHitFrame = -1;
-        }
-        if (clock.frmticks >= minFrameTicks) {
-            going = game.frame();
-            frame++;
-        }
-        if (shotPath && frame >= shotFrames) {
-            display.saveBmp(screen, eng.palette(), shotPath);
-            // the app has no console in release builds, so leave the report beside the image
-            if (std::FILE* f = std::fopen((std::string(shotPath) + ".txt").c_str(), "w")) {
-                std::fprintf(f, "cecode=%d frame=%d ejectflag=%d groundflag=%d freezeflag=%d rpm=%d\n"
-                                "ox=%d oy=%d oz=%d orvec=%d,%d,%d topv=%d,%d,%d missionstatus=%04x\n",
-                             eng.cecode, frame, gs.b(d::m3::ejectflag), gs.b(d::m3::groundflag), gs.b(d::m3::freezeflag),
-                             gs.w(d::m3::rpm), gs.dw(d::m3::ox), gs.dw(d::m3::ox + 4), gs.dw(d::m3::ox + 8),
-                             gs.w(d::m3::orvec), gs.w(d::m3::orvec + 2), gs.w(d::m3::orvec + 4), gs.w(d::m3::topv),
-                             gs.w(d::m3::topv + 2), gs.w(d::m3::topv + 4), gs.uw(d::m3::missionstatus));
-                std::fprintf(f, "dvel=%d,%d,%d thrtmult=%d rhotop=%d rho0=%d rpmx=%d currpmx=%d thrtsf=%d ctopv=%d,%d,%d "
-                                "alpha=%d qstald=%d nticks=%d ofrmticks=%d ozeff=%d\n",
-                             gs.dw(d::m3::dvel), gs.dw(d::m3::dvel + 4), gs.dw(d::m3::dvel + 8), gs.w(d::m3::thrtmult),
-                             gs.w(d::m3::rhotop), gs.w(d::m3::rho0), gs.w(d::m3::rpmx), gs.w(d::m3::currpmx),
-                             gs.w(d::m3::thrsf), gs.w(d::m3::ctopv), gs.w(d::m3::ctopv + 2), gs.w(d::m3::ctopv + 4),
-                             gs.w(d::m3::alpha), gs.b(d::m3::qstald), gs.w(d::m3::nticks), gs.w(d::m3::ofrmticks),
-                             gs.dw(d::m3::ozeff));
-                std::fclose(f);
+    TextScreen screen(window);
+    if (uiKeys) screen.script(uiKeys);
+    if (uiShots) screen.shotEveryKey(uiShots);
+    const MissionRequest base = rq;
+    FrontEnd menus(screen, settings, haveMusic ? &music : nullptr, [&](const MissionRequest& request) {
+        MissionRequest r = request;
+        r.hd = base.hd;
+        r.noSound = base.noSound;
+        r.fps = base.fps;
+        if (fakeStatus >= 0) {   // a canned result instead of a flight
+            MissionOutcome out;
+            out.over = true;
+            out.status = static_cast<uint16_t>(fakeStatus);
+            out.flightSeconds = 600;
+            ResultBlock block;
+            block.status = out.status;
+            block.objectives = static_cast<uint16_t>(fakeKills[0]);
+            block.fuelDumps = static_cast<uint16_t>(fakeKills[1]);
+            block.aaaDestroyed[3] = static_cast<uint16_t>(fakeKills[2]);
+            block.sitesDestroyed[2] = static_cast<uint16_t>(fakeKills[3]);
+            block.maxDamage = 40;
+            out.result = block.serialize();
+            out.result.resize(140);
+            if (!r.training) {
+                std::FILE* f = std::fopen(r.cctPath.c_str(), "rb");
+                if (f) {
+                    std::fseek(f, 0, SEEK_END);
+                    out.universe.resize(static_cast<size_t>(std::ftell(f)));
+                    std::fseek(f, 0, SEEK_SET);
+                    if (!out.universe.empty()) std::fread(out.universe.data(), 1, out.universe.size(), f);
+                    std::fclose(f);
+                }
             }
-            break;
+            return out;
         }
-        display.present(screen, eng.palette(), eng.panX(), eng.panY());
-        if (!going) {
-            gameOver = true;
-            break;
-        }
-    }
-    if (gameOver) {
-        game.finishResults();
-        if (resPath) {   // the result block the tower reads
-            if (std::FILE* f = std::fopen(resPath, "wb")) {
-                const std::vector<uint8_t> block = game.resultBytes();
-                std::fwrite(block.data(), 1, block.size(), f);
-                std::fclose(f);
-            }
-        }
-        // PICT.ASM: the picture for how it ended (the tower and the score come with the front end)
-        runMissionEnd(window, missionPictures(gs.uw(d::m3::missionstatus), gs.uw(d::m3::nfdest), gs.uw(d::m3::deathcode)));
-    }
+        return runMission(window, r);
+    });
+    menus.run();
     return 0;
 }

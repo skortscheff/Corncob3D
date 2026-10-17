@@ -197,6 +197,51 @@ void Main3::propAndWeapons() {
     }
 }
 
+// 3.ASM dotower / runtower: the boss screen, the information of the tower (F2, or stepping into the tower door),
+// and what comes after: a chosen mission moves the plane there, and walking in repairs the plane
+void Main3::dotower() {
+    const u8 boss = B(M3(bossflag));
+    TowerKind kind = TowerKind::Info;
+    if (boss == 0xFF) kind = TowerKind::Boss;
+    else if (boss == 0x7F) kind = TowerKind::Score;
+    else if (boss == 0x7D) kind = TowerKind::Detail;
+    const bool onFoot = B(M3(ejectflag)) != 0;
+    int32_t start[4] = {0, 0, 0, 0};
+    const bool chose = m_tower ? m_tower(kind, onFoot, start) : false;
+    m_kbd.clear();   // cleargetkey: nothing is held when we come back
+    if (kind == TowerKind::Info && !onFoot && chose) {   // getstartfile: a mission to start from
+        SD(M3(tempstart), start[0]);
+        SD(M3(tempstart) + 4, start[1]);
+        SD(M3(tempstart) + 8, start[2]);
+        SW(M3(tempstart) + 12, static_cast<i16>(start[3]));
+        SB(M3(newmissflag), 0xFF);
+    }
+    SB(M3(cmpltflag), 0);
+    SB(M3(redamageflag), 0xFF);   // use the old damage by default
+    clearScn();
+    if (onFoot && boss == 0 && static_cast<int8_t>(B(M3(intowerflag))) != 1) {   // he walked into the tower: out of the door, the plane repaired
+        SD(M3(oy), add32(D(M3(oy)), -2000));   // out of the door
+        SW(M3(orvec), -16384);   // point out of the tower
+        recalcmats();
+        const u16 si = static_cast<u16>(M3(obj5d));
+        if (W(si + 24) != 0) {
+            const i16 pl = static_cast<i16>(M3(plnplyobj));
+            SW(si + 24, 1);   // non-destructable
+            SW(si + 40, pl);
+            SW(si + 42, pl);
+            SW(si + 44, pl);
+            SW(si + 14, static_cast<i16>(d::m3_equ::epitchmin));   // point the nose correctly
+            SW(si + 8, W(M3(hmin)));   // drop the plane down to the ground
+        }
+        SB(M3(crshlndflag), 0);
+        cleardamage();
+        SW(M3(lrockettick), static_cast<i16>(m_clock.ticks));   // the rocket is powered up
+        SW(M3(rockettick), 2184);
+    }
+    SB(M3(intowerflag), 0);
+    SB(M3(bossflag), 0);
+    restoreview();
+}
 // ==========================================================================================
 // 10685-10739: the throttle
 // ==========================================================================================
@@ -298,11 +343,7 @@ void Main3::miscKeys() {
     if (scnIs(0x3D)) { clearScn(); SB(M3(bossflag), 0x7F); }
     if (scnIs(0x3C)) { clearScn(); SB(M3(intowerflag), 1); }
     if (scnIs(0x3F)) { clearScn(); }
-    if (B(M3(bossflag)) != 0 || B(M3(intowerflag)) != 0) {
-        // dotower runs TOWER.EXE (briefings, the boss screen): recreated in Phase 8
-        SB(M3(bossflag), 0);
-        SB(M3(intowerflag), 0);
-    }
+    if (B(M3(bossflag)) != 0 || B(M3(intowerflag)) != 0) dotower();
     if (UW(M3(frmnum)) == 7) {   // the popup that tells how to get a mission
         if (B(M3(readfileflag)) == 0) SW(M3(rmsgqueue), static_cast<i16>(M3(trainrmsg)));
         else if (W(M3(rpm)) == 20) SW(M3(rmsgqueue), static_cast<i16>(M3(hitf2rmsg)));
@@ -498,6 +539,11 @@ void Main3::finishResults() {
     SW(M3(nplaneslost), lost);
     SW(d::strtexp::nkillmetough, 0);   // so it can't be done twice
     SW(M3(missionstatus), static_cast<i16>(UW(M3(missionstatus)) & UW(M3(patchcrash))));
+}
+
+std::vector<uint8_t> Main3::saveUniverse() {
+    m_world.flushtiles();   // the objects of the near table go back into their tiles
+    return m_world.writeuniv();
 }
 
 std::vector<uint8_t> Main3::resultBytes() const {
