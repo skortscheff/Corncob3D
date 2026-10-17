@@ -148,7 +148,7 @@ bool Main3::dolandinggear() {
     }
     // brakes, only with the plane on the ground
     u8 pressed = static_cast<u8>(key(0x34));   // '.'
-    if (W(M3(joyflag)) != 0 && (B(M3(joyflag)) != 0)) pressed |= static_cast<u8>(key(0x2A));
+    if (B(M3(joyflag)) != 0) pressed |= static_cast<u8>(key(0x2A));
     pressed |= static_cast<u8>(key(0x52));      // 0 on the keypad
     i16 force = 15;                              // normal braking force
     if (!pressed) {
@@ -185,13 +185,11 @@ void Main3::set5dbits() {
 
 // 3.ASM qcrashland: checks for crash landing and takes action
 void Main3::qcrashland() {
-    bool fallToWatchdie = false;
     if (B(M3(crshlndflag)) == 0) return;
     if (B(M3(ejectflag)) != 0 && W(M3(obj5d) + 24) != 0) {
         set5dbits();
         odest(static_cast<u16>(M3(obj5d)), 0, true);   // destroy the plane
     }
-    (void)fallToWatchdie;
     if (B(M3(invincible)) != 0) {
         resetplane();
         SB(M3(crshlndflag), 0);

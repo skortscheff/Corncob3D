@@ -280,7 +280,6 @@ void Main3::miscKeys() {
         if (B(M3(readfileflag)) == 0) SW(M3(rmsgqueue), static_cast<i16>(M3(trainrmsg)));
         else if (W(M3(rpm)) == 20) SW(M3(rmsgqueue), static_cast<i16>(M3(hitf2rmsg)));
     }
-    if (scnIs(0x3C)) { clearScn(); SB(M3(intowerflag), 1); }
     if (key(0x23) && B(M3(ejectflag)) != 0) SB(M3(haltflag), 0xFF);
 }
 
@@ -364,7 +363,10 @@ bool Main3::exitCheck() {
             else {
                 SB(M3(abortflag), 0);
                 if (m_eng.cecode != 0) leave = true;
-                else if (B(M3(rescueflag)) != 0) SB(M3(haltflag), 0), leave = true;
+                else if (B(M3(rescueflag)) != 0) {
+                    SB(M3(haltflag), 0);
+                    leave = true;
+                }
                 else if (B(M3(capturedflag)) != 0) {
                     SW(M3(missionstatus), static_cast<i16>(UW(M3(missionstatus)) | 8));   // set captured bit
                     leave = true;
@@ -412,7 +414,8 @@ bool Main3::endMission() {
             return true;
         }
     }
-    return finishMission() ? true : true;
+    finishMission();
+    return true;
 }
 
 // 11275-11290: parked or not, the mission ends here

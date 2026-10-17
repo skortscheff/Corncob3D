@@ -162,10 +162,6 @@ bool Main3::frame() {
     altitudeLights();
     if (highAltitude()) return finishMission();
     if (key(0x23)) takedrugs();          // 'h': hallucinogens
-    {
-        const u8 hal = static_cast<u8>(W(M3(haluclrs)) | W(M3(haluclrs) + 2) | W(M3(haluclrs) + 4));
-        (void)hal;
-    }
     getBackIntoPlane();
     viewKeys();
     propAndWeapons();
@@ -566,9 +562,12 @@ void Main3::everyFrame() {
     if (B(M3(homeflag)) != 0 && (m_clock.oticks & 1024)) al = 15;   // the home base blinks
     SB(M3(clrtwr), al);
     // exchange the red and yellow flame colors
-    std::swap_ranges(m_g.raw() + M3(clrf1), m_g.raw() + M3(clrf1) + 1, m_g.raw() + M3(clrf2));
     {
-        u8 a = B(M3(clrd1)), b = B(M3(clrd2));
+        u8 a = B(M3(clrf1)), b = B(M3(clrf2));
+        SB(M3(clrf1), b);
+        SB(M3(clrf2), a);
+        a = B(M3(clrd1));
+        b = B(M3(clrd2));
         SB(M3(clrd1), b);
         SB(M3(clrd2), a);
         a = B(M3(clrd3));
@@ -649,11 +648,9 @@ void Main3::altitudeLights() {}
 // 10044-10082: too high: lost in space (the SRATS stars program is Phase 5)
 bool Main3::highAltitude() {
     if (!(UW(M3(obj5dbits)) & 0x2000)) return false;   // only the bomber goes that high
-    const i16 alt = static_cast<i16>(static_cast<u16>(UW(M3(oxeff) + 9 - 8 + 8)));
-    (void)alt;
     const i32 oz = D(M3(ozeff));
     const i16 high = static_cast<i16>((static_cast<u32>(oz) >> 8) & 0xFFFF);   // cmp oxeff+9,ax: altitude / 256
-    if (high < W(M3(starheight))) return false;
+    if (high < W(M3(starheight))) return false;   // below the stars
     if (B(M3(aceflag)) == 0) return false;             // don't do it if not ace
     SB(M3(bhighflag), 1);
     m_world.flushtiles();

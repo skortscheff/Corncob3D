@@ -78,6 +78,14 @@ target_include_directories(test_world PRIVATE src/)
 target_compile_definitions(test_world PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
 target_link_libraries(test_world PRIVATE SDL2::SDL2 dgroup)
 add_test(NAME world COMMAND test_world)
+add_executable(test_flight tests/test_flight.cpp
+    src/game/World.cpp src/game/Keyboard.cpp src/game/Main3.cpp src/game/Main3Flight.cpp
+    src/game/Main3Ground.cpp src/game/Main3Frame.cpp src/game/Main3Misc.cpp src/game/Main3Objects.cpp
+    src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/engine/F3dObj.cpp src/render/EgaScreen.cpp)
+target_include_directories(test_flight PRIVATE src/)
+target_compile_definitions(test_flight PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
+target_link_libraries(test_flight PRIVATE SDL2::SDL2 dgroup)
+add_test(NAME flight COMMAND test_flight)
 
 if(WIN32)
     # Windowed app (no console) in release; keep the console in debug for logging
