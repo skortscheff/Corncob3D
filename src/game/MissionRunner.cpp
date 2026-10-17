@@ -17,6 +17,7 @@
 #include "render/EgaScreen.hpp"
 #include "ui/Intro.hpp"
 #include "ui/MissionEnd.hpp"
+#include "ui/SpaceSequence.hpp"
 #include "ui/TowerScreen.hpp"
 #include "game/TheaterFiles.hpp"
 #include "DGroup.hpp"
@@ -348,6 +349,7 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
                 std::fclose(f);
             }
         }
+        if (out.status & 0x0400) runSpaceSequence(window);   // lost in space: SRATS
         // PICT.ASM: the picture for how it ended
         if (rq.showEndPictures) runMissionEnd(window, missionPictures(out.status, out.nfdest, out.deathcode));
     }

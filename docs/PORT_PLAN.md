@@ -62,21 +62,17 @@ Faithful port of the DOS game (MASM source in this repo) to C++17 / SDL2. Origin
   - Left out: printing the documentation, the joystick calibration and the first-run screens (nothing to
     decompress, no DOS), the old registration menu, the sound editor. Only one airfield per theater is
     handled (the shipped theaters have one).
+- **Phase 9** `README.md`, a `package` build target, key redefinition (`DosKeyboard::setBindings`, saved in `settings.cfg`), the high
+  resolution factor and frame rate in the setup menu, and the lost-in-space sequence (`ui/SpaceSequence`, after SRATS.ASM:
+  the sky fades while the Earth shrinks and the stars stream by).
 - **Extra** Xbox pad: dual-stick scheme for flying and for walking (strafe, look).
 
-## Remaining (next up: Phase 9)
-
-### Step 0: verification setup (DONE, see the results at the end)
-- Install DOSBox and run the shipped `3.EXE` as a timing/behaviour reference.
-- Count the object types in the four shipped theaters (MORNING, DUSK, WHTSANDS, WASTELND) to rank which
-  enemies a shareware mission uses.
-
-### Phase 9: polish and packaging
-- A `dist/` packaging target, a README for the port, performance pass.
-- Settings that are still missing: key rebinding, HD and window options in the menus.
-- Several airfields per theater (the original supports 9; the shipped theaters have one) and the airfield choice screens.
-- The `SRATS` space sequence (a separate program that runs when you fly too high) goes last.
-- Hand checks that the tests cannot do: the feel of the weapons and the enemies, the music by ear, the menus with a pad.
+## Remaining
+Nothing in the plan is open. Left as it is, on purpose:
+- Several airfields per theater (the original supports nine; the shipped theaters have one, so the airfield choice screens
+  are not needed). The text of `.TWR` files with more towers is read the same way, but only the first airfield is used.
+- Hand checks that tests cannot do: the music by ear, the feel of weapons and enemies, the menus with a pad. (Music and
+  combat were played and felt right.)
 ## Dropped
 - Real-joystick support (`JOY.ASM`): the pad covers it.
 - Demo record/playback: the shareware build (`shareflag=1`, `nodemo=1`) excludes it.

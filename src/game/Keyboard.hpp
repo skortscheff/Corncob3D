@@ -13,6 +13,8 @@
 // one frame still counts for the right fraction.
 
 #pragma once
+#include <utility>
+#include <vector>
 #include "game/GameState.hpp"
 #include "game/TickClock.hpp"
 #include <SDL.h>
@@ -24,8 +26,13 @@ class DosKeyboard {
 public:
     DosKeyboard(GameState& gs, TickClock& clock) : m_g(gs), m_clock(clock) {}
 
-    // Maps an SDL scancode to the PC/XT scan code the game expects (0 = unmapped)
+    // Maps an SDL scancode to the PC/XT scan code the game expects (0 = unmapped), with the player's own
+    // bindings applied
     static uint8_t dosScanCode(SDL_Scancode sc);
+    static uint8_t defaultScanCode(SDL_Scancode sc);
+    // Keys the player chose for DOS scan codes: (SDL scancode, DOS code). The default key of a code that appears
+    // here stops giving it.
+    static void setBindings(const std::vector<std::pair<int, uint8_t>>& bindings);
 
     // new9: one key transition, `ticksAgo` timer ticks before now
     void key(uint8_t dosCode, bool down, uint16_t ticksAgo = 0);

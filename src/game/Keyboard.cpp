@@ -1,5 +1,8 @@
 // Keyboard.cpp - Port of new9 (3MACS.INC), setkbit/getkbit/readkey (3.ASM), scalekey (3.ASM)
 
+#include <map>
+#include <set>
+#include <vector>
 #include "Keyboard.hpp"
 #include "DGroup.hpp"
 
@@ -12,7 +15,28 @@ const uint32_t DosKeyboard::SCNFLG = d::m3::scnflg;
 const uint32_t DosKeyboard::KEYTABLE = d::m3::keytable;
 const uint32_t DosKeyboard::KBDTBL = d::m3::kbdtbl;
 
+namespace {
+std::map<int, uint8_t> g_override;   // a key the player chose -> the DOS code it gives
+std::set<uint8_t> g_rebound;         // the DOS codes that have been given another key
+}
+
+void DosKeyboard::setBindings(const std::vector<std::pair<int, uint8_t>>& bindings) {
+    g_override.clear();
+    g_rebound.clear();
+    for (const auto& b : bindings) {
+        g_override[b.first] = b.second;
+        g_rebound.insert(b.second);
+    }
+}
+
 uint8_t DosKeyboard::dosScanCode(SDL_Scancode sc) {
+    const auto it = g_override.find(static_cast<int>(sc));
+    if (it != g_override.end()) return it->second;
+    const uint8_t code = defaultScanCode(sc);
+    return g_rebound.count(code) ? 0 : code;   // the old key of a rebound action does nothing any more
+}
+
+uint8_t DosKeyboard::defaultScanCode(SDL_Scancode sc) {
     switch (sc) {
     case SDL_SCANCODE_ESCAPE: return 0x01;
     case SDL_SCANCODE_1: return 0x02;

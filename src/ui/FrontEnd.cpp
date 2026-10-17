@@ -2,6 +2,7 @@
 
 #include "FrontEnd.hpp"
 #include "assets/Assets.hpp"
+#include "game/Keyboard.hpp"
 #include "game/TheaterFiles.hpp"
 #include "ui/Career.hpp"
 #include "ui/GameText.hpp"
@@ -281,29 +282,89 @@ struct FrontEnd::Impl {
     }
 
     // ---- control setup ----
-    enum { K_KEYBOARD = 1, K_JOYSTICK, K_INVERT, K_INFO, K_RETURN };
+    enum { K_KEYBOARD = 1, K_JOYSTICK, K_INVERT, K_KEYS, K_HD, K_FPS, K_INFO, K_RETURN };
+
+    // the actions whose keys can be chosen, with the DOS scan code the game reads for each
+    struct Action { const char* name; uint8_t dos; };
+    static const std::vector<Action>& actions() {
+        static const std::vector<Action> a = {
+            {"Nose down", 0x48}, {"Nose up", 0x50}, {"Roll left", 0x4B}, {"Roll right", 0x4D}, {"Rudder left", 0x2C}, {"Rudder right", 0x2D},
+            {"Throttle up", 0x4E}, {"Throttle down", 0x4A}, {"Brakes", 0x34}, {"Guns", 0x39}, {"Missiles", 0x2E}, {"Drop bomb", 0x30},
+            {"Flaps", 0x21}, {"Autopilot", 0x1E}, {"Eject / step out", 0x12}, {"Rocket booster", 0x17}, {"Map mode", 0x32}, {"Pause", 0x19},
+            {"Rear window", 0x13}, {"Ground detail dots", 0x22}, {"Advance time", 0x14}, {"Sound toggle", 0x1F}};
+        return a;
+    }
+    static std::string keyName(const Settings& s, uint8_t dos) {
+        for (const auto& b : s.bindings)
+            if (b.first == dos) return SDL_GetScancodeName(static_cast<SDL_Scancode>(b.second));
+        return "(original key)";
+    }
+    void applyBindings() {
+        std::vector<std::pair<int, uint8_t>> v;
+        for (const auto& b : s.bindings) v.push_back({b.second, static_cast<uint8_t>(b.first)});
+        DosKeyboard::setBindings(v);
+    }
+    void redefineKeys() {
+        int sel = 0;
+        for (;;) {
+            std::vector<MenuItem> items;
+            for (size_t i = 0; i < actions().size(); i++)
+                items.push_back({padRight(actions()[i].name, 22) + keyName(s, actions()[i].dos), static_cast<int>(i)});
+            items.push_back({"\\Reset all keys to the original ones", 100});
+            items.push_back({"\\Return to previous menu", 101});
+            const MenuResult r = runMenu(t, 4, 5, 58, items, sel, [&] {
+                header();
+                t.box(3, 3, 62, 22, WINDOW, "Define keys");
+                t.put(5, 4, "Choose an action, <CR>, then press the key you want for it", WINDOW);
+            });
+            if (r.closed || r.id == -1 || r.id == 101) return;
+            if (r.id == 100) {
+                s.bindings.clear();
+            } else {
+                const Action& a = actions()[r.id];
+                centeredBox(t, a.name, {std::string("Press the key for ") + a.name + ",", "or <ESC> to keep the present one."});
+                const UiKey k = t.waitKey();
+                if (k.quit) return;
+                if (k.code != SDLK_ESCAPE && k.code != 0) {
+                    const int sc = static_cast<int>(SDL_GetScancodeFromKey(k.code));
+                    if (sc != 0) {
+                        s.bindings.erase(std::remove_if(s.bindings.begin(), s.bindings.end(), [&](const std::pair<int, int>& b) { return b.first == a.dos || b.second == sc; }), s.bindings.end());
+                        s.bindings.push_back({a.dos, sc});
+                    }
+                }
+            }
+            applyBindings();
+            saveSettings(s);
+        }
+    }
     void controlSetup() {
         while (!closed()) {
             const std::vector<MenuItem> items = {
                 {"choose \\Keyboard control", K_KEYBOARD},
                 {"choose \\Joystick (gamepad) control too", K_JOYSTICK},
-                {std::string(s.invertPitch ? "stop \\Inverting" : "\\Invert") + " the gamepad pitch", K_INVERT},
+                {std::string(s.invertPitch ? "stop in\\Verting" : "in\\Vert") + " the gamepad pitch", K_INVERT},
+                {"re\\Define keys", K_KEYS},
+                {fmt("\\High resolution: %dx  (640x350 times %d)", s.hd, s.hd), K_HD},
+                {fmt("\\Frame rate: %d frames per second", s.fps), K_FPS},
                 {"get \\Information about this menu", K_INFO},
                 {"\\Return to previous menu", K_RETURN},
             };
             const MenuResult r = runMenu(t, 4, 9, 50, items, kbSel, [&] {
                 header();
-                t.box(3, 4, 54, 15, WINDOW, "Keyboard/joystick setup");
+                t.box(3, 4, 54, 18, WINDOW, "Keyboard/joystick setup");
                 t.put(5, 5, "Use arrow keys or type highlighted", WINDOW);
                 t.put(5, 6, "letter to choose action:", WINDOW);
-                t.put(5, 15, "Current choices:", WINDOW);
-                t.put(5, 16, controlText() + " control.", WINDOW);
-                t.put(5, 17, "Keyboard players should view the Keyboard Play chapter of the documentation.", WINDOW);
+                t.put(5, 18, "Current choices:", WINDOW);
+                t.put(5, 19, controlText() + " control.", WINDOW);
+                t.put(5, 20, "See the Keyboard Play chapter of the documentation.", WINDOW);
             });
             if (r.closed || r.id == -1 || r.id == K_RETURN) return;
             if (r.id == K_KEYBOARD) s.joystick = false;
             else if (r.id == K_JOYSTICK) s.joystick = true;
             else if (r.id == K_INVERT) s.invertPitch = !s.invertPitch;
+            else if (r.id == K_KEYS) redefineKeys();
+            else if (r.id == K_HD) s.hd = s.hd % 4 + 1;
+            else if (r.id == K_FPS) s.fps = s.fps >= 30 ? 10 : s.fps + 5;
             else if (r.id == K_INFO) info(Info::Keyboard, "Keyboard/Joystick Menu Information");
             saveSettings(s);
         }
@@ -446,6 +507,8 @@ struct FrontEnd::Impl {
         rq.comments = s.comments;
         rq.useGamepad = s.joystick;
         rq.invertPitch = s.invertPitch;
+        rq.hd = s.hd;
+        rq.fps = s.fps;
         fly(rq, nullptr, "Training Mission");
     }
 
@@ -794,6 +857,8 @@ struct FrontEnd::Impl {
         rq.beginnerModel = s.beginnerModel;
         rq.comments = s.comments;
         rq.stockPlane = stock;
+        rq.hd = s.hd;
+        rq.fps = s.fps;
         rq.useGamepad = s.joystick;
         rq.invertPitch = s.invertPitch;
         fly(rq, &th, ti ? ti->name : th.def);
@@ -1083,6 +1148,7 @@ FrontEnd::FrontEnd(TextScreen& screen, Settings& settings, MusicBox* music, Miss
 FrontEnd::~FrontEnd() = default;
 
 void FrontEnd::run() {
+    m_impl->applyBindings();
     if (m_impl->music && m_impl->s.music) m_impl->music->playMenu();
     m_impl->mainMenu();
     saveSettings(m_impl->s);

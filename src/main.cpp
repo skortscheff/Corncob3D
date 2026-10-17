@@ -16,6 +16,7 @@
 #include "ui/MusicBox.hpp"
 #include "ui/Scoring.hpp"
 #include "ui/Settings.hpp"
+#include "ui/SpaceSequence.hpp"
 #include "ui/TextScreen.hpp"
 #include "ui/TowerScreen.hpp"
 #include "game/TheaterFiles.hpp"
@@ -102,6 +103,7 @@ int main(int argc, char* argv[]) {
     //   --spawn-enemies            one of each kind of enemy appears around the strip
     //   --end-pictures <hex status> [--death <code>] [--shot-end <prefix>]: the mission-end pictures for a status
     //   --tower-test <theater>     the tower information screen of a theater, with --ui-keys / --ui-shots
+    //   --space-shot <file.bmp>    the lost-in-space sequence, one picture
     //   --fake-mission <hex status> [--fake-kills o,f,a,s]: the menus get a canned result instead of a flight
     //   --res <file>               write the result block (3.res) there when a mission ends
     //   --shot-intro <prefix>      run the title sequence and loading screen unattended, one BMP per scene
@@ -112,6 +114,7 @@ int main(int argc, char* argv[]) {
     const char* uiKeys = nullptr;
     const char* uiShots = nullptr;
     const char* towerTest = nullptr;
+    const char* spaceShot = nullptr;
     const char* saveDir = nullptr;
     const char* playRol = nullptr;
     const char* wavRol = nullptr;
@@ -119,7 +122,7 @@ int main(int argc, char* argv[]) {
     const char* shotEnd = nullptr;
     int fakeStatus = -1;   // --fake-mission: no flight, a canned result (for looking at the reports)
     int fakeKills[4] = {1, 25, 2, 1};
-    bool skipIntro = false, noMusic = false;
+    bool skipIntro = false, noMusic = false, hdGiven = false, fpsGiven = false;
     bool direct = false;
     int wavSeconds = 30;
     int endStatus = -1, deathCode = 0;
@@ -135,9 +138,9 @@ int main(int argc, char* argv[]) {
         else if (!std::strcmp(argv[i], "--kla") && more) rq.kla = std::atoi(argv[++i]);
         else if (!std::strcmp(argv[i], "--aaa") && more) rq.aaa = std::atoi(argv[++i]);
         else if (!std::strcmp(argv[i], "--veh") && more) rq.vehicles = std::atoi(argv[++i]);
-        else if (!std::strcmp(argv[i], "--hd") && more) rq.hd = std::clamp(std::atoi(argv[++i]), 1, 4);
+        else if (!std::strcmp(argv[i], "--hd") && more) { rq.hd = std::clamp(std::atoi(argv[++i]), 1, 4); hdGiven = true; }
         else if (!std::strcmp(argv[i], "--frames") && more) rq.shotFrames = std::max(1, std::atoi(argv[++i]));
-        else if (!std::strcmp(argv[i], "--fps") && more) rq.fps = std::clamp(std::atoi(argv[++i]), 5, 60);
+        else if (!std::strcmp(argv[i], "--fps") && more) { rq.fps = std::clamp(std::atoi(argv[++i]), 5, 60); fpsGiven = true; }
         else if (!std::strcmp(argv[i], "--keyscript") && more) rq.keyScript = argv[++i];
         else if (!std::strcmp(argv[i], "--spawn-hit") && more) rq.spawnHitFrame = std::max(2, std::atoi(argv[++i]));
         else if (!std::strcmp(argv[i], "--spawn-enemies")) rq.spawnEnemies = true;
@@ -146,6 +149,7 @@ int main(int argc, char* argv[]) {
         else if (!std::strcmp(argv[i], "--ui-keys") && more) uiKeys = argv[++i];
         else if (!std::strcmp(argv[i], "--ui-shots") && more) uiShots = argv[++i];
         else if (!std::strcmp(argv[i], "--tower-test") && more) towerTest = argv[++i];
+        else if (!std::strcmp(argv[i], "--space-shot") && more) spaceShot = argv[++i];
         else if (!std::strcmp(argv[i], "--play-rol") && more) playRol = argv[++i];
         else if (!std::strcmp(argv[i], "--wav-rol") && i + 3 < argc) {
             wavRol = argv[++i];
@@ -181,6 +185,8 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
+    if (spaceShot) return runSpaceSequence(window, spaceShot) ? 0 : 1;
+
     if (introShots) {   // the title sequence and the loading screen, unattended
         const std::string prefix = introShots;
         if (runIntro(window, prefix.c_str()) == IntroResult::Quit) return 0;
@@ -201,6 +207,8 @@ int main(int argc, char* argv[]) {
     // the game itself: the title, then the menus
     Settings settings;
     loadSettings(settings);
+    if (hdGiven) settings.hd = rq.hd;
+    if (fpsGiven) settings.fps = rq.fps;
     MusicBox music;
     const bool haveMusic = !noMusic && !uiKeys && music.init();
     music.setOn(settings.music);
@@ -215,9 +223,7 @@ int main(int argc, char* argv[]) {
     const MissionRequest base = rq;
     FrontEnd menus(screen, settings, haveMusic ? &music : nullptr, [&](const MissionRequest& request) {
         MissionRequest r = request;
-        r.hd = base.hd;
         r.noSound = base.noSound;
-        r.fps = base.fps;
         if (fakeStatus >= 0) {   // a canned result instead of a flight
             MissionOutcome out;
             out.over = true;

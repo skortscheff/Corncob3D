@@ -69,6 +69,7 @@ add_executable(corncob3d
     src/ui/Career.cpp
     src/ui/FrontEnd.cpp
     src/ui/TowerScreen.cpp
+    src/ui/SpaceSequence.cpp
     src/game/MissionRunner.cpp
     src/game/TheaterFiles.cpp
 )
@@ -152,3 +153,17 @@ endif()
 add_executable(theaterstats tools/theaterstats.cpp src/game/World.cpp src/engine/F3dVec.cpp src/engine/F3dObj.cpp src/engine/AsmTables.cpp src/render/EgaScreen.cpp)
 target_include_directories(theaterstats PRIVATE src/)
 target_link_libraries(theaterstats PRIVATE SDL2::SDL2 dgroup)
+
+# `cmake --build build --target package`: a folder to hand out (the game data is not included: copy the original
+# files to assets/original next to the exe)
+add_custom_target(package
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/dist/Corncob3D
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:corncob3d> ${CMAKE_BINARY_DIR}/dist/Corncob3D/
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/README.md ${CMAKE_BINARY_DIR}/dist/Corncob3D/
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/dist/Corncob3D/assets/original
+    COMMAND ${CMAKE_COMMAND} -E echo "Copy the original Corncob 3D shareware files into this folder (IMG, DEF, VGA, 3.ADL ...)." > ${CMAKE_BINARY_DIR}/dist/Corncob3D/assets/original/PUT_GAME_FILES_HERE.txt
+    DEPENDS corncob3d)
+if(WIN32)
+    add_custom_command(TARGET package POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:SDL2::SDL2> ${CMAKE_BINARY_DIR}/dist/Corncob3D/)
+endif()
