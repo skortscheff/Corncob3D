@@ -5,15 +5,21 @@ This repository mixes four kinds of material. They are not all under the same te
 ## 1. The port (C++ code) — MIT
 
 `src/`, `tests/`, `tools/`, `CMakeLists.txt`, `docs/` and the new text of `README.md` are
-released under the MIT License (see `LICENSE`). The port is open to everyone: use it, study
-it, fork it, ship it.
+released under the MIT License (see `LICENSE`). The MIT license covers only this material: not the original assembly
+source (section 2), not `third_party/` (section 3), and not the game data (section 4). The port is open to everyone: use
+it, study it, fork it, ship it.
 
 ## 2. The original source code (assembly) — author's permission, no formal license
 
 The MASM sources in the repository root (`*.ASM`, `*.INC`, `*.LNK`, `MAKEFILE`) are the
 original Corncob 3-D source code by Kevin Stokes / Pie in the Sky Software, published by
-MVP Software. They are included unchanged so the port can be checked against them and so
-the build tool `tools/asmdata` can read them.
+MVP Software. They are included so the port can be checked against them and so the build
+tool `tools/asmdata` can read them. They are the 1994 source snapshot as released, except for three
+lines in two files, changed so that the source builds the shipped game (see `git log` for `KA.INC`
+and `F3DEQU.INC`):
+
+- `KA.INC`: `slalom` 1 -> 0 and `guns` 0 -> 1
+- `F3DEQU.INC`: `getunivbin` 1 -> 0
 
 Provenance, as documented by the public mirror <https://github.com/foone/Corncob3D>:
 

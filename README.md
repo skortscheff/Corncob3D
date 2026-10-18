@@ -39,7 +39,7 @@ If you make something good out of it, I'd love to hear about it, but that is ent
 |---|---|
 | **OS** | Windows 10/11 (the only platform built and tested). The code has no Windows-specific calls, so Linux and macOS should build with the same CMake steps, but that is untried. |
 | **Compiler** | Any C++17 compiler. Tested with GCC from MSYS2 UCRT64. |
-| **Tools** | CMake 3.15 or newer, Ninja (or any CMake generator), git |
+| **Tools** | CMake 3.16 or newer, Ninja (or any CMake generator), git |
 | **Library** | SDL2 (development package) |
 | **CPU / GPU** | Modest. The game is software-rendered at 640x350 (the original EGA mode), so no GPU features are needed. Any PC from the last 10-15 years should do; I have not measured minimums. A higher `--hd` factor and the 60 fps default cost more CPU. |
 | **RAM / disk** | Well under 100 MB of RAM; the source, build and game data together are a few hundred MB at most. |
@@ -71,8 +71,8 @@ If you make something good out of it, I'd love to hear about it, but that is ent
 
 4. **Add the game data** (see below), then **run** `build/corncob3d.exe`.
 
-5. **Check it works** (optional): `ctest --test-dir build`. All 13 suites should pass in a few seconds. Suites that need
-   the game data skip themselves if it is missing.
+5. **Check it works** (optional): `ctest --test-dir build`. All 13 suites should pass in a few seconds with the game data in place. Without it, the
+   suites that need the data are reported as skipped.
 
 To make a folder you can zip and hand out: `cmake --build build --target package` writes `build/dist/Corncob3D`
 (the exe, `SDL2.dll` and this README).
@@ -145,8 +145,8 @@ menus unattended, `--fake-mission`, `--spawn-enemies`, `--end-pictures`, `--spac
 
 ## Quality-of-life enhancements
 
-Beyond a faithful port, a few things were added so it plays comfortably on a modern PC. Each can be switched back to the
-original behavior.
+Beyond a faithful port, a few things were added so it plays comfortably on a modern PC. Where it makes sense, they can be switched
+back to the original behavior.
 
 - **60 fps simulation.** The original ran at about 20 frames per second. The port runs at 60 by default, with flight,
   weapons and timers rescaled so the plane still handles like the original. 20 fps is available in

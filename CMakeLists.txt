@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.16)
 project(Corncob3D VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -187,3 +187,7 @@ if(WIN32)
     add_custom_command(TARGET package POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:SDL2::SDL2> ${CMAKE_BINARY_DIR}/dist/Corncob3D/)
 endif()
+
+# Tests that need the original game files print "skipped" and pass; show them as skipped, not passed
+set_tests_properties(asmmath dgroup engine world flight rate demo sound pict rol career theaters frontend
+                     PROPERTIES SKIP_REGULAR_EXPRESSION "skipped")

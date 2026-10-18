@@ -1,5 +1,9 @@
 # Runs the menus unattended (scripted keys, a canned mission result) and checks what they saved:
 # a pilot is created, a theater opened and flown, the mission scored and put in the high score list.
+if(NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/../assets/original/IMG/3D.IMG)
+    message(STATUS "frontend flow: original game files not found, skipped")
+    return()
+endif()
 file(REMOVE_RECURSE ${SAVE})
 execute_process(
     COMMAND ${EXE} --skip-intro --no-music --save-dir ${SAVE} --fake-mission 14

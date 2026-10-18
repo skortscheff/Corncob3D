@@ -7,6 +7,7 @@
 #include "game/GameState.hpp"
 #include <cmath>
 #include <cstdio>
+#include <fstream>
 #include <vector>
 
 #ifndef CORNCOB_ASSET_DIR
@@ -34,6 +35,11 @@ static double rms(Opl& opl, int frames) {
 }
 
 int main(int, char**) {
+    if (!std::ifstream(std::string(CORNCOB_ASSET_DIR) + "/3.ADL")) {
+        std::printf("test_sound: original 3.ADL not found, skipped
+");
+        return 0;
+    }
     GameState gs;
     Opl opl;                   // not opened: no sound card needed
     Sound snd(gs, opl);

@@ -1,11 +1,6 @@
 MIT License
 
-Copyright (c) 2026 skort
-
-This license covers the C++ port code written for this repository: src/, tests/,
-tools/, CMakeLists.txt, docs/ and the new text of README.md. It does NOT cover the
-original Corncob 3-D assembly source in the repository root or the third-party code
-in third_party/. See NOTICE.md for those and for what is deliberately not included.
+Copyright (c) 2026 skortscheff
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
