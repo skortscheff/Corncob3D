@@ -220,7 +220,7 @@ void Main3::qhomebase() {
     SB(M3(homenowflag), ah);
     SB(M3(homeflag), ah);
     if (ah != 0) return;
-    if (UW(M3(frmnum)) < 20) return;   // give it a couple of seconds
+    if (m_refTotal < 20) return;   // give it a couple of seconds
     SB(M3(neverleftflag), 0);          // now show that we have left home
 }
 
@@ -357,7 +357,7 @@ void Main3::goodstep(i16 stepsz, i16 side) {
 
 // 3.ASM dampchute: slow the falling man down: air resistance, terminal velocity
 void Main3::dampchute() {
-    const i16 cd = W(M3(chutedamp));
+    const i16 cd = keepPow15(W(M3(chutedamp)));
     for (int k = 0; k < 2; k++) {
         const i32 p = imul16(W(M3(otopv) + 2 * k), cd);
         SW(M3(otopv) + 2 * k, static_cast<i16>(hi16(p) << 1));

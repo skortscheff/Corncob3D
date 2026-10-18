@@ -38,7 +38,7 @@ void Main3::chgwloop(u16& si, int cx, i16 dx) {
 
 void Main3::changewallobjs() {
     constexpr i16 WALLSZ = 16383, WALLSZ2 = 8191, FSR = 4000;
-    SW(M3(framecount), add16(W(M3(framecount)), 1));
+    SW(M3(framecount), add16(W(M3(framecount)), static_cast<i16>(m_refSteps)));
     const u16 fc = UW(M3(framecount));
 
     // sizes of the walls of wallsz22tbl

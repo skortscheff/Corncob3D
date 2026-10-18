@@ -89,7 +89,7 @@ int main(int argc, char* argv[]) {
     //   --nosound                  no AdLib sound in the missions (and no music)
     //   --no-music                 no music in the menus
     //   --hd <n>                   start missions at n x 640x350 (HD mode)
-    //   --fps <n>                  game frames per second, 5-60 (default 20)
+    //   --fps <n>                  game frames per second, 5-60 (default 60; 20 is the original's pace)
     //   --save-dir <dir>           where the pilots, theaters and settings are kept
     // Looking at one thing (development aids):
     //   --ui-keys "Down,Enter,x"   feed the menus these keys instead of reading the keyboard, and quit when they run out

@@ -86,8 +86,16 @@ Nothing in the plan is open. Left as it is, on purpose:
 ## Build notes
 - The source tree is newer than the shipped `3.EXE`; built as `guns=1`, `slalom=0`, `getunivbin=0`.
 - MSYS2 UCRT64 toolchain: `cmake --build build`, `ctest --test-dir build`.
-- The simulation is only stable at about 20 frames per second (fixed-point matrix math), so the game
-  paces itself to that.
+- **60 Hz engine (deliberate deviation).** The original steps at ~20 fps and its fixed-point math only works there. The port
+  runs at 60 (default) or 20 (`fps` setting / `--fps`). The reference frame is the 20 fps frame (58 timer ticks); at other
+  rates: the time base is one tick (`ofrmticks`, `ticksf`=40) instead of 8 ticks; velocity/angle/position increments carry
+  their fractions between frames and the flight velocity multiplies round (`velmul`); `wtadj` dithers its remainder;
+  per-frame filters, kicks, drags and spins are scaled by `frameScale`/`decayStep`/`dispScale`; countdown lifetimes
+  (`+52`), the swing counter, wall animation and start-up timers count `refSteps` (20 fps frames passed) and the
+  lifetimes set at spawn are constants in those frames (`uwtadjRef`). Below 43 ticks per frame the angles come out of the
+  matrix with an exact arctangent (`atn2Fine`) instead of the 8 unit table. At 20 fps the original paths are kept.
+  `tests/test_rate` flies one script at 20 and 60 and compares speed, distance, climb and pitch. 30 fps is not offered (it
+  climbs steeper than 20 and 60); on-ground nose-up at 60 is ~1 s slower than at 20.
 
 ## Step 0 results (2026-10-17)
 

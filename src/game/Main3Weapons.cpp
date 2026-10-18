@@ -107,7 +107,7 @@ void Main3::bulstrt() {
 
 // bobjmov: a bullet flies; when it hits the ground it makes a puff of smoke and stops
 void Main3::bobjmov(u16 si) {
-    const u16 disp = UW(M3(objdisp));
+    const u16 disp = dispScale(UW(M3(objdisp)));
     auto axisVel = [&](u16 velOff) -> i16 {
         i16 ax = sub16(static_cast<i16>(m_rand.randr_w(disp)), static_cast<i16>(disp >> 1));
         ax = add16(ax, W(velOff));
@@ -199,7 +199,7 @@ void Main3::mistim(u16 si, bool carry) {
     if (W(si + 52) < d::m3_equ::mistime - 11) return;   // the burn is over (after about a second)
     if (vmag(static_cast<u16>(si + 46)) > 3000) return;   // not faster than 3000
     for (int k = 0; k < 3; k++) {   // speed up by 1000/890
-        const i32 v = static_cast<i32>(W(si + 46 + 2 * k)) * 1000 / 890;
+        const i32 v = static_cast<i32>(std::lround(W(si + 46 + 2 * k) * std::pow(1000.0 / 890.0, static_cast<double>(W(M3(ofrmticks))) / REF_TICKS)));
         SW(si + 46 + 2 * k, static_cast<i16>(v & 0xFFFF));
     }
 }
@@ -317,6 +317,7 @@ void Main3::bombtim(u16 si, bool carry) {
     for (int k = 0; k < 3; k++) {
         i32 ax = static_cast<i32>(static_cast<i16>(W(si + 46 + 2 * k))) * bx / K;
         if (k == 2) ax -= 54;   // gravity
+        ax = frameScale(ax);
         SW(si + 46 + 2 * k, add16(W(si + 46 + 2 * k), static_cast<i16>(ax & 0xFFFF)));
     }
 }

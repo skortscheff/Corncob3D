@@ -115,12 +115,19 @@ private:
     i32 dwtadjWide(i32 v) const;
     // a per-frame change written for the 20 fps frame, made for the frame that is really being run
     i32 frameScale(i32 v) const;
+    // v kept in proportion keep (0..1) per 20 fps frame, for the frame being run: the exponential fall-offs of the original
+    i32 decayStep(i32 v, double keep) const;
+    u16 dispScale(u16 range) const;
+    // the factor itself, as a 1.15 number (for the multiplies the original does)
+    i16 keepPow15(i16 keep15) const;
     static constexpr u32 REF_TICKS = 58;   // timer ticks in the original's 20 fps frame
     static i16 uwtadjRef(i16 v);
     u32 m_refAcc = 0;
     mutable u32 m_dither = 0;
     bool m_fineAngles = false;   // short frames: the angles out of the matrix without the 8 unit grid of the atn2 table
-    u16 m_refSteps = 1;   // 20 fps frames passed since the last frame
+    u16 m_refSteps = 1;
+    u32 m_refTotal = 0;     // all of them since the start
+    bool m_popupDone = false;   // 20 fps frames passed since the last frame
     // The whole part of a 16.16 amount with the fraction carried to the next frame: the original dropped it every frame, which
     // at a short frame was as large as the amount itself
     static i16 takeWhole(i32 value, u16& frac);

@@ -344,7 +344,8 @@ void Main3::miscKeys() {
     if (scnIs(0x3C)) { clearScn(); SB(M3(intowerflag), 1); }
     if (scnIs(0x3F)) { clearScn(); }
     if (B(M3(bossflag)) != 0 || B(M3(intowerflag)) != 0) dotower();
-    if (UW(M3(frmnum)) == 7) {   // the popup that tells how to get a mission
+    if (!m_popupDone && m_refTotal >= 7) {
+        m_popupDone = true;   // the popup that tells how to get a mission
         if (B(M3(readfileflag)) == 0) SW(M3(rmsgqueue), static_cast<i16>(M3(trainrmsg)));
         else if (W(M3(rpm)) == 20) SW(M3(rmsgqueue), static_cast<i16>(M3(hitf2rmsg)));
     }

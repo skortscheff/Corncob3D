@@ -36,11 +36,12 @@ constexpr int NBYTEXP = d::m3_equ::nbytexp, NEXPS = d::m3_equ::nexps;
 // ==========================================================================================
 bool Main3::objmov(u16 si) {
     if (B(si + 26) != 0) {   // apply rotation
-        SW(si + 12, add16(W(si + 12), W(si + 54)));
-        SW(si + 14, add16(W(si + 14), W(si + 56)));
-        SW(si + 16, add16(W(si + 16), W(si + 58)));
+        SW(si + 12, add16(W(si + 12), static_cast<i16>(frameScale(W(si + 54)))));
+        SW(si + 14, add16(W(si + 14), static_cast<i16>(frameScale(W(si + 56)))));
+        SW(si + 16, add16(W(si + 16), static_cast<i16>(frameScale(W(si + 58)))));
     }
-    const u16 disp = UW(M3(objdisp));
+    // the random push is a walk, so it grows with the square root of the number of frames
+    const u16 disp = dispScale(UW(M3(objdisp)));
     const u16 damp = UW(M3(objdamp));
 
     // one axis: the velocity at velOff gets a random push, then air resistance against its sign
@@ -56,7 +57,7 @@ bool Main3::objmov(u16 si) {
             SW(velOff, ax);
             const bool negative = ax < 0;   // the flags of that add decide the sign of the drag
             const u32 square = static_cast<u32>(static_cast<i32>(ax) * static_cast<i32>(ax));
-            ax = static_cast<i16>((square / damp) & 0xFFFF);
+            ax = static_cast<i16>(frameScale(static_cast<i32>((square / damp) & 0xFFFF)));   // the drag of this frame
             if (!negative) ax = neg16(ax);
         }
         ax = add16(ax, W(velOff));

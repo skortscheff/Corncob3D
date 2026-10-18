@@ -47,8 +47,8 @@ space guns, c missiles, b bomb, e eject, F1 boss screen, F2 the control tower's 
 in `keyboard/Joystick setup` > `reDefine keys`. An Xbox-style gamepad works as well: left stick flies, right stick looks, `A` guns,
 `X` missiles, `B` bomb, `Y` flaps, `Back` eject, `Start` pause (on foot: left stick walks, right stick looks).
 
-The game paces itself at about 20 frames per second, because its fixed-point arithmetic only works at the original's frame
-rate; `keyboard/Joystick setup` also has the high-resolution factor and the frame rate.
+The simulation runs at 60 frames per second by default (a reworked time base keeps flight, weapons and timers at the original's pace);
+`keyboard/Joystick setup` switches to the original's 20 and sets the high-resolution factor.
 
 ### Command line
 

@@ -364,7 +364,7 @@ struct FrontEnd::Impl {
             else if (r.id == K_INVERT) s.invertPitch = !s.invertPitch;
             else if (r.id == K_KEYS) redefineKeys();
             else if (r.id == K_HD) s.hd = s.hd % 4 + 1;
-            else if (r.id == K_FPS) s.fps = s.fps >= 30 ? 10 : s.fps + 5;
+            else if (r.id == K_FPS) s.fps = s.fps >= 60 ? 20 : 60;   // the original's 20, or the 60 Hz engine
             else if (r.id == K_INFO) info(Info::Keyboard, "Keyboard/Joystick Menu Information");
             saveSettings(s);
         }

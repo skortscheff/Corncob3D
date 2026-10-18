@@ -46,6 +46,11 @@ constexpr int EHMIN = 720;
 // start-up (3.ASM main, tgmode ... ship3): what the loop expects when it starts
 // ==========================================================================================
 void Main3::startUp(bool readFile) {
+    for (int k = 0; k < 3; k++) { m_velFrac[k] = 0; m_angFrac[k] = 0; m_posFrac[k] = 0; }
+    m_refAcc = 0;
+    m_refSteps = 1;
+    m_refTotal = 0;
+    m_popupDone = false;
     SB(M3(readfileflag), readFile ? 0xFF : 0);
     SB(M3(joyflag), 0);                  // keyboard only until Phase 6
     SB(M3(numlock), B(M3(joyflag)));     // views off with the keyboard

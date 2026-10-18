@@ -105,7 +105,7 @@ void Main3::swing() {
     const u16 count = UW(M3(swingcount));
     const u16 swingmx = static_cast<u16>(d::m3_equ::swingmx);
     if (count > swingmx) {   // noswingyet
-        SW(M3(swingcount), static_cast<i16>(count - 1));
+        SW(M3(swingcount), static_cast<i16>(std::max<int>(count - m_refSteps, swingmx)));
         return;
     }
     if (count == swingmx) {  // swingnowrdy: swinging done, back to the angles the pilot had
@@ -120,11 +120,11 @@ void Main3::swing() {
     const u32 prod = mul16(static_cast<u16>(adj), 900);
     const i16 c = engine::scos(static_cast<i16>(prod & 0xFFFF));
     const i32 p = imul16(static_cast<i16>(adj), c);   // count * cosine
-    const i16 factor = sal16(hi16(p), 1);              // sal dx,1
+    const i16 factor = static_cast<i16>(frameScale(sal16(hi16(p), 1)));   // sal dx,1
     SW(M3(orvec) + 2, add16(W(M3(orvec) + 2), factor));
     SW(M3(orvec) + 2, add16(W(M3(orvec) + 2), factor));
-    SW(M3(orvec) + 2, add16(W(M3(orvec) + 2), sar16(neg16(W(M3(orvec) + 2)), 5)));
-    SW(M3(swingcount), static_cast<i16>(count - 1));
+    SW(M3(orvec) + 2, static_cast<i16>(decayStep(W(M3(orvec) + 2), 31.0 / 32.0)));
+    SW(M3(swingcount), static_cast<i16>(std::max<int>(count - m_refSteps, 0)));
 }
 
 // ==========================================================================================
@@ -140,8 +140,7 @@ void Main3::sticks(i16& roll, i16& pitch) {
         const i16 cx = neg16(ax);
         bx = neg16(bx);
         for (int k = 0; k < 2; k++) {   // let the tumble die away: 9500/10100 per frame
-            const i32 p = imul16(W(M3(tmbvec) + 2 * k), 9500);
-            SW(M3(tmbvec) + 2 * k, idiv32(p, 10100).q);
+            SW(M3(tmbvec) + 2 * k, static_cast<i16>(decayStep(W(M3(tmbvec) + 2 * k), 9500.0 / 10100.0)));
         }
         bx = add16(bx, W(M3(tmbvec) + 2));
         bumpangles(bx, cx);

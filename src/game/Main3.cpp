@@ -7,6 +7,7 @@
 #include "core/AsmMath.hpp"
 #include "engine/AsmTables.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -76,6 +77,25 @@ i32 Main3::frameScale(i32 v) const {
     return static_cast<i32>(std::max<int64_t>(INT32_MIN, std::min<int64_t>(INT32_MAX, q)));
 }
 
+i32 Main3::decayStep(i32 v, double keep) const {
+    if (keep <= 0.0 || keep >= 1.0) return v;
+    const double f = static_cast<double>(W(M3(ofrmticks))) / REF_TICKS;
+    return static_cast<i32>(std::lround(static_cast<double>(v) * std::pow(keep, f)));
+}
+
+u16 Main3::dispScale(u16 range) const {
+    if (range == 0) return 0;
+    const double f = static_cast<double>(W(M3(ofrmticks))) / REF_TICKS;
+    return static_cast<u16>(std::max(1L, std::lround(range * std::sqrt(f))));
+}
+
+i16 Main3::keepPow15(i16 keep15) const {
+    if (keep15 <= 0) return keep15;
+    const double f = static_cast<double>(W(M3(ofrmticks))) / REF_TICKS;
+    const long r = std::lround(32768.0 * std::pow(keep15 / 32768.0, f));
+    return static_cast<i16>(std::min<long>(r, 32767));
+}
+
 i16 Main3::takeWhole(i32 value, u16& frac) {
     const int64_t total = static_cast<int64_t>(value) + frac;
     frac = static_cast<u16>(total & 0xFFFF);
@@ -124,6 +144,7 @@ void Main3::timing() {
     m_fineAngles = W(M3(ofrmticks)) < static_cast<i16>(REF_TICKS * 3 / 4);
     m_refAcc += static_cast<u32>(W(M3(ofrmticks)));
     m_refSteps = static_cast<u16>(m_refAcc / REF_TICKS);
+    m_refTotal += m_refSteps;
     m_refAcc %= REF_TICKS;
 }
 

@@ -243,8 +243,8 @@ void Main3::bmrtim(u16 si, u16 di, bool carry) {
             bx = sub16(bx, wtadj(3));
             if (bx < 0) bx = 0;
             SW(si + 52, bx);
-            SW(si + 16, sub16(W(si + 16), static_cast<i16>(W(si + 16) >> 4)));   // an exponential fall off for the roll
-            SW(si + 12, add16(W(si + 12), 4000));
+            SW(si + 16, static_cast<i16>(decayStep(W(si + 16), 15.0 / 16.0)));   // an exponential fall off for the roll
+            SW(si + 12, add16(W(si + 12), static_cast<i16>(frameScale(4000))));
             // if too low, rise up
             const u32 z32 = static_cast<u32>(UW(si + 8)) | (static_cast<u32>(UW(si + 10)) << 16);
             const u32 rel = z32 - (3u << 16);
