@@ -15,26 +15,87 @@ Not done: several airfields per theater (the original supports nine, the shipped
 documentation, real DOS joystick calibration. The raw-score weights, rank thresholds and medal rules are recreations; only the
 three score examples of the manual are original.
 
-## Building (Windows, MSYS2 UCRT64)
+## Requirements
 
-```powershell
-# one-time: install MSYS2, then in its shell:
-#   pacman -S mingw-w64-ucrt-x86_64-{gcc,cmake,ninja,SDL2} git
-$env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-ctest --test-dir build          # unit tests, flight tests over the theaters, the menus driven end to end
-cmake --build build --target package    # build/dist/Corncob3D: the exe, SDL2.dll and this README
-```
+| | |
+|---|---|
+| **OS** | Windows 10/11 (the only platform built and tested). The code has no Windows-specific calls, so Linux and macOS should build with the same CMake steps, but that is untried. |
+| **Compiler** | Any C++17 compiler. Tested with GCC from MSYS2 UCRT64. |
+| **Tools** | CMake 3.15 or newer, Ninja (or any CMake generator), git |
+| **Library** | SDL2 (development package) |
+| **CPU / GPU** | Modest. The game is software-rendered at 640x350 (the original EGA mode), so no GPU features are needed. Any PC from the last 10-15 years should do; I have not measured minimums. A higher `--hd` factor and the 60 fps default cost more CPU. |
+| **RAM / disk** | Well under 100 MB of RAM; the source, build and game data together are a few hundred MB at most. |
+| **Input** | Keyboard (the original keys, rebindable), or an Xbox-style gamepad. |
+| **Audio** | Any sound output. The AdLib chip is emulated in software. |
+| **Game data** | The original Corncob 3-D shareware files, which you supply (see below). |
 
-The build first compiles `tools/asmdata`, which extracts the original data segment from the ASM sources into
-`build/generated/DGroup.{cpp,hpp}`.
+## Quick start (Windows)
+
+1. **Install MSYS2** from <https://www.msys2.org>. Open the **MSYS2 UCRT64** shell and run once:
+
+   ```sh
+   pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-SDL2 git
+   ```
+
+2. **Get the code.**
+
+   ```sh
+   git clone https://github.com/skortscheff/Corncob3D.git
+   cd Corncob3D
+   ```
+
+3. **Build** (in the same UCRT64 shell, or in PowerShell after `$env:PATH = "C:\msys64\ucrt64\bin;$env:PATH"`):
+
+   ```sh
+   cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+   cmake --build build
+   ```
+
+4. **Add the game data** (see below), then **run** `build/corncob3d.exe`.
+
+5. **Check it works** (optional): `ctest --test-dir build`. All 13 suites should pass in a few seconds. Suites that need
+   the game data skip themselves if it is missing.
+
+To make a folder you can zip and hand out: `cmake --build build --target package` writes `build/dist/Corncob3D`
+(the exe, `SDL2.dll` and this README).
+
+**On Linux or macOS** (untested): install a C++17 compiler, CMake, Ninja and the SDL2 development package from your
+package manager, then run steps 2-4 above.
+
+If the build fails, check that `cmake` finds SDL2 (`find_package(SDL2)`); on MSYS2 that means building from the UCRT64
+shell, not the plain MSYS shell.
 
 ## Game data
 
-The original shareware data files are **not** in this repository (they are copyrighted). Extract the distributable game into
-`assets/original/` so that `assets/original/IMG/3D.IMG` exists; for a packaged copy put the same folder as `assets\original`
-next to the exe. The exe searches upward from its own folder. Tests that need the data skip themselves when it is missing.
+The original shareware data files are **not** in this repository (they are copyrighted). Obtain the Corncob 3-D shareware
+release yourself, and extract it into `assets/original/` so that `assets/original/IMG/3D.IMG` exists. For a packaged copy
+put the same folder as `assets\original` next to the exe. The exe searches upward from its own folder. Tests that need the
+data skip themselves when it is missing.
+
+## How this port came about
+
+Corncob 3-D (1991-92, Pie in the Sky Software / MVP Software) was written in 8086 assembly for DOS, talking straight to
+EGA/VGA hardware, the AdLib chip and the PC keyboard interrupt. Its author later released the source, and it survived on
+the Wayback Machine and a public GitHub mirror (see `NOTICE.md`). The source is a snapshot that does not match the shipped
+`3.EXE` exactly, and the menu programs and the author's `sas.lib` were never part of it.
+
+The port was done over about five days (14-18 October 2026) as a pair-programming project between a human and Claude Code, an AI
+coding assistant, working from a written plan of ten phases. The key decisions:
+
+- **Translate, don't rewrite.** Each assembly routine became a C++ routine with the same name, order and fixed-point
+  arithmetic, quirks included. A build-time tool (`tools/asmdata`) reads the assembly's data definitions and generates the
+  original data segment, so the translated code keeps working on the same memory layout.
+- **Emulate the hardware, not the PC.** EGA bit planes, the AdLib chip (through the ymfm emulator), and the keyboard
+  interrupt are emulated, rather than running the original code in an x86 emulator.
+- **Test against the original.** The shipped `3.EXE` ran in DOSBox as a reference, and the tests replay flights over the
+  theaters, check arithmetic against the 8086 behavior, and drive the menus end to end.
+- **Rebuild what was missing.** The menu programs, high-score tables and tower screens were recreated from their text
+  data and the manual.
+- **Modernize gently.** A 60 fps time base that keeps the original's feel, an HD scale option, a modern instrument panel
+  (`--classic-panel` restores the original), key rebinding and gamepad support.
+
+`docs/PORT_PLAN.md` is the full phase-by-phase record, including every place where the port deliberately differs from the
+original.
 
 ## Playing
 
