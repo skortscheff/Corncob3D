@@ -15,6 +15,24 @@ Not done: several airfields per theater (the original supports nine, the shipped
 documentation, real DOS joystick calibration. The raw-score weights, rank thresholds and medal rules are recreations; only the
 three score examples of the manual are original.
 
+## Project status: an experiment, unsupported
+
+This started as a weekend experiment. It comes **with no support whatsoever**: no promised bug fixes, no roadmap, no
+guarantee that issues or pull requests will be answered. It will probably never be called a finished project. It works and
+it is fun to play, but expect rough edges.
+
+**Please take it and run with it.** The code is MIT licensed, and the work done so far is a foundation anyone can build on:
+copy it, fork it, rewrite parts of it, port it to other platforms, fix what bothers you, add what you miss. You don't need
+to ask permission or send anything back. Ideas that would be welcome in a fork:
+
+- several airfields per theater (the original supports nine)
+- Linux and macOS builds, tested
+- more faithful scoring, ranks and medals (the current rules are recreations)
+- joystick support, demo recording and playback
+- anything else you can think of
+
+If you make something good out of it, I'd love to hear about it, but that is entirely optional.
+
 ## Requirements
 
 | | |
