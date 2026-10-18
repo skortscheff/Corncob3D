@@ -71,6 +71,7 @@ add_executable(corncob3d
     src/ui/TowerScreen.cpp
     src/ui/SpaceSequence.cpp
     src/game/MissionRunner.cpp
+    src/game/ModernPanel.cpp
     src/game/TheaterFiles.cpp
 )
 

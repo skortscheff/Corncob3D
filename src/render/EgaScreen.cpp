@@ -126,6 +126,7 @@ void Display::present(const EgaScreen& scr, const EgaPalette& pal, int panX, int
     if (h > wh) { h = wh; w = wh * 4 / 3; }
     SDL_Rect dst{(ww - w) / 2, (wh - h) / 2, w, h};
     SDL_RenderCopy(m_sdl, m_tex, nullptr, &dst);
+    if (m_overlay) m_overlay(dst);
     SDL_RenderPresent(m_sdl);
 }
 

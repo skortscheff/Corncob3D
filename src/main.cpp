@@ -89,6 +89,7 @@ int main(int argc, char* argv[]) {
     //   --nosound                  no AdLib sound in the missions (and no music)
     //   --no-music                 no music in the menus
     //   --hd <n>                   start missions at n x 640x350 (HD mode)
+    //   --classic-panel / --modern-panel   the original EGA instrument panel, or the smooth one (default)
     //   --fps <n>                  game frames per second, 5-60 (default 60; 20 is the original's pace)
     //   --save-dir <dir>           where the pilots, theaters and settings are kept
     // Looking at one thing (development aids):
@@ -122,7 +123,7 @@ int main(int argc, char* argv[]) {
     const char* shotEnd = nullptr;
     int fakeStatus = -1;   // --fake-mission: no flight, a canned result (for looking at the reports)
     int fakeKills[4] = {1, 25, 2, 1};
-    bool skipIntro = false, noMusic = false, hdGiven = false, fpsGiven = false;
+    bool skipIntro = false, noMusic = false, hdGiven = false, fpsGiven = false, panelGiven = false;
     bool direct = false;
     int wavSeconds = 30;
     int endStatus = -1, deathCode = 0;
@@ -142,6 +143,8 @@ int main(int argc, char* argv[]) {
         else if (!std::strcmp(argv[i], "--frames") && more) rq.shotFrames = std::max(1, std::atoi(argv[++i]));
         else if (!std::strcmp(argv[i], "--fps") && more) { rq.fps = std::clamp(std::atoi(argv[++i]), 5, 60); fpsGiven = true; }
         else if (!std::strcmp(argv[i], "--keyscript") && more) rq.keyScript = argv[++i];
+        else if (!std::strcmp(argv[i], "--classic-panel")) { rq.modernPanel = false; panelGiven = true; }
+        else if (!std::strcmp(argv[i], "--modern-panel")) { rq.modernPanel = true; panelGiven = true; }
         else if (!std::strcmp(argv[i], "--spawn-hit") && more) rq.spawnHitFrame = std::max(2, std::atoi(argv[++i]));
         else if (!std::strcmp(argv[i], "--spawn-enemies")) rq.spawnEnemies = true;
         else if (!std::strcmp(argv[i], "--res") && more) rq.resPath = argv[++i];
@@ -209,6 +212,7 @@ int main(int argc, char* argv[]) {
     loadSettings(settings);
     if (hdGiven) settings.hd = rq.hd;
     if (fpsGiven) settings.fps = rq.fps;
+    if (panelGiven) settings.modernPanel = rq.modernPanel;
     MusicBox music;
     const bool haveMusic = !noMusic && !uiKeys && music.init();
     music.setOn(settings.music);

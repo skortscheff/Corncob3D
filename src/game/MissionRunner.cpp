@@ -11,6 +11,7 @@
 #include "game/Inst.hpp"
 #include "game/Keyboard.hpp"
 #include "game/Main3.hpp"
+#include "game/ModernPanel.hpp"
 #include "game/TickClock.hpp"
 #include "game/World.hpp"
 #include "platform/Input.hpp"
@@ -139,6 +140,7 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
     engine::F3dVec eng(gs, screen);
     Display display(window.sdlRenderer());
     EgaImg panel;
+    game::ModernPanel modernPanel(gs);
     const bool havePanel = loadImg(assetPath("IMG/3D.IMG"), panel);
     if (havePanel) screen.drawPanel(panel, 0);
 
@@ -174,6 +176,10 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
     game::Instruments instruments(gs, eng, screen, clock);
     game::Main3 game(gs, eng, world, keyboard, clock, instruments);
     if (opl.isOpen()) game.setSound(&sound);
+    if (rq.modernPanel)   // the smooth panel over the picture, except under the pause and help pictures
+        display.setOverlay([&](const SDL_Rect& r) {
+            if (!game.paused()) modernPanel.draw(window.sdlRenderer(), r, screen, eng.palette());
+        });
     game.onViewChange([&](bool cockpit) {
         if (cockpit && havePanel) screen.drawPanel(panel, 0);   // readimg: the instrument panel
     });
@@ -308,6 +314,7 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
         }
         if (rq.shotPath && frame >= rq.shotFrames) {
             display.saveBmp(screen, eng.palette(), rq.shotPath);
+            if (rq.modernPanel) modernPanel.saveComposite(screen, eng.palette(), (std::string(rq.shotPath) + ".modern.bmp").c_str());
             // the app has no console in release builds, so leave the report beside the image
             if (std::FILE* f = std::fopen((std::string(rq.shotPath) + ".txt").c_str(), "w")) {
                 std::fprintf(f, "cecode=%d frame=%d ejectflag=%d groundflag=%d freezeflag=%d rpm=%d\n"

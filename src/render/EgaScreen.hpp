@@ -14,6 +14,7 @@
 #include <SDL.h>
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <vector>
 
 namespace corncob {
@@ -92,6 +93,9 @@ public:
     void present(const EgaScreen& scr, const EgaPalette& pal, int panX = 0, int panY = 0);
     bool saveBmp(const EgaScreen& scr, const EgaPalette& pal, const char* path) const;
 
+    // Drawn over the picture (given the rectangle it was copied to) just before it is shown: the modern panel
+    void setOverlay(std::function<void(const SDL_Rect&)> f) { m_overlay = std::move(f); }
+
 private:
     void convert(const EgaScreen& scr, const EgaPalette& pal, int panX, int panY);
 
@@ -99,6 +103,7 @@ private:
     SDL_Texture* m_tex = nullptr;
     int m_texW = 0, m_texH = 0;
     std::vector<uint32_t> m_px;
+    std::function<void(const SDL_Rect&)> m_overlay;
 };
 
 } // namespace corncob

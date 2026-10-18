@@ -33,6 +33,7 @@ struct MissionRequest {
     int hd = 1;
     bool noSound = false;
     int fps = 20;
+    bool modernPanel = true;         // the smooth instrument panel over the EGA one
     bool showLoadingScreen = true;   // "Please wait one moment..." and the instrument panel fading in
     bool showEndPictures = true;     // the picture for how the mission ended
 

@@ -282,7 +282,7 @@ struct FrontEnd::Impl {
     }
 
     // ---- control setup ----
-    enum { K_KEYBOARD = 1, K_JOYSTICK, K_INVERT, K_KEYS, K_HD, K_FPS, K_INFO, K_RETURN };
+    enum { K_KEYBOARD = 1, K_JOYSTICK, K_INVERT, K_KEYS, K_HD, K_FPS, K_PANEL, K_INFO, K_RETURN };
 
     // the actions whose keys can be chosen, with the DOS scan code the game reads for each
     struct Action { const char* name; uint8_t dos; };
@@ -346,6 +346,7 @@ struct FrontEnd::Impl {
                 {"re\\Define keys", K_KEYS},
                 {fmt("\\High resolution: %dx  (640x350 times %d)", s.hd, s.hd), K_HD},
                 {fmt("\\Frame rate: %d frames per second", s.fps), K_FPS},
+                {std::string("instrument \\Panel: ") + (s.modernPanel ? "modern" : "original"), K_PANEL},
                 {"get \\Information about this menu", K_INFO},
                 {"\\Return to previous menu", K_RETURN},
             };
@@ -364,6 +365,7 @@ struct FrontEnd::Impl {
             else if (r.id == K_INVERT) s.invertPitch = !s.invertPitch;
             else if (r.id == K_KEYS) redefineKeys();
             else if (r.id == K_HD) s.hd = s.hd % 4 + 1;
+            else if (r.id == K_PANEL) s.modernPanel = !s.modernPanel;
             else if (r.id == K_FPS) s.fps = s.fps >= 60 ? 20 : 60;   // the original's 20, or the 60 Hz engine
             else if (r.id == K_INFO) info(Info::Keyboard, "Keyboard/Joystick Menu Information");
             saveSettings(s);
@@ -509,6 +511,7 @@ struct FrontEnd::Impl {
         rq.invertPitch = s.invertPitch;
         rq.hd = s.hd;
         rq.fps = s.fps;
+        rq.modernPanel = s.modernPanel;
         fly(rq, nullptr, "Training Mission");
     }
 
@@ -859,6 +862,7 @@ struct FrontEnd::Impl {
         rq.stockPlane = stock;
         rq.hd = s.hd;
         rq.fps = s.fps;
+        rq.modernPanel = s.modernPanel;
         rq.useGamepad = s.joystick;
         rq.invertPitch = s.invertPitch;
         fly(rq, &th, ti ? ti->name : th.def);

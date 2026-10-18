@@ -53,7 +53,7 @@ The simulation runs at 60 frames per second by default (a reworked time base kee
 ### Command line
 
 ```
---skip-intro  --no-music  --nosound  --hd <n>  --fps <n>  --save-dir <dir>
+--skip-intro  --no-music  --nosound  --hd <n>  --fps <n>  --classic-panel  --save-dir <dir>
 ```
 
 and for looking at one thing (the full list is at the top of `src/main.cpp`): `--theater <name>` / `--training` fly a mission
