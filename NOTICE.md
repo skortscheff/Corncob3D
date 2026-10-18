@@ -1,6 +1,6 @@
 # Notices, provenance and licensing
 
-This repository mixes four kinds of material. They are not all under the same terms.
+This repository mixes five kinds of material. They are not all under the same terms.
 
 ## 1. The port (C++ code) — MIT
 
@@ -23,10 +23,6 @@ and `F3DEQU.INC`):
 
 Provenance, as documented by the public mirror <https://github.com/foone/Corncob3D>:
 
-- The same 1994 source archive (3srcj12.zip) is also on the Internet Archive, uploaded 2018-04-12 as "Corncob 3D source code" (creator MVP Software, uploader dosnostalgic): <https://archive.org/details/3srcj12>. That page states no license.
-- The same 1994 source archive (`3srcj12.zip`) is also on the Internet Archive, uploaded on 2018-04-12 as
-  "Corncob 3D source code" (creator MVP Software, uploader dosnostalgic): <https://archive.org/details/3srcj12>.
-  That page states no license.
 - The source was released by its author in 2001 on psky.com. Archived page:
   <https://web.archive.org/web/20020108042105/http://psky.com/prog/downloads.htm>
 - It was republished on 2018-04-11:
@@ -34,6 +30,9 @@ Provenance, as documented by the public mirror <https://github.com/foone/Corncob
 - The mirror records the original developer's permission to use the code freely
   ("do whatever you like with it"):
   <https://twitter.com/TideGear/status/984514063387344896>
+
+The same 1994 archive (`3srcj12.zip`) is also on the Internet Archive, uploaded 2018-04-12 as "Corncob 3D source code"
+(creator MVP Software, uploader dosnostalgic): <https://archive.org/details/3srcj12>. That page states no license.
 
 That permission is informal: there is **no license file** and no copyright assignment. These
 files are therefore **not** relicensed under MIT. They remain the work of their original
