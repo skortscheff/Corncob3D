@@ -1,0 +1,18 @@
+# takeoff.demo - throttle up, take off, climb, roll right and pull (PC scan codes: 4E throttle+, 50 down, 4D right)
+theater MORNING
+fps 60
+key 0.2 down 4E
+key 1.0 up 4E
+key 13.5 down 50
+key 14.3 up 50
+key 20.0 down 4D
+key 20.4 up 4D
+key 20.4 down 50
+key 20.9 up 50
+# expect SECONDS alt x y speed yaw pitch roll
+expect 5 669 -852036 -8000 2565 -1 -1501 0
+expect 10 685 -817286 -8000 4967 -1 -1143 0
+expect 15 1106 -762527 -8000 6755 -1 -1824 0
+expect 20 7248 -697082 -8000 7544 -1 -2239 0
+expect 25 14499 -632926 -29426 7910 -6098 -175 12589
+expect 30 2158 -577201 -68594 9326 -7647 3018 12647

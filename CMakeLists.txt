@@ -122,6 +122,16 @@ target_include_directories(test_rate PRIVATE src/ tests/)
 target_compile_definitions(test_rate PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
 target_link_libraries(test_rate PRIVATE SDL2::SDL2 dgroup ymfm)
 add_test(NAME rate COMMAND test_rate)
+add_executable(test_demo tests/test_demo.cpp
+    src/game/World.cpp src/game/Keyboard.cpp src/game/Main3.cpp src/game/Main3Flight.cpp
+    src/game/Main3Ground.cpp src/game/Main3Frame.cpp src/game/Main3Misc.cpp src/game/Main3Map.cpp src/game/Main3Objects.cpp
+    src/game/Main3Panel.cpp src/game/Main3Sound.cpp src/game/Main3Timed.cpp src/game/Main3Weapons.cpp src/game/Main3Sites.cpp src/game/Main3Flyers.cpp src/game/Inst.cpp src/audio/Sound.cpp src/audio/Opl.cpp
+    src/engine/AsmTables.cpp src/engine/F3dVec.cpp src/engine/F3dObj.cpp src/render/EgaScreen.cpp)
+target_include_directories(test_demo PRIVATE src/ tests/)
+target_compile_definitions(test_demo PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original"
+                                             CORNCOB_DEMO_DIR="${CMAKE_SOURCE_DIR}/tests/demos")
+target_link_libraries(test_demo PRIVATE SDL2::SDL2 dgroup ymfm)
+add_test(NAME demo COMMAND test_demo)
 add_executable(test_sound tests/test_sound.cpp src/audio/Opl.cpp src/audio/Sound.cpp)
 target_include_directories(test_sound PRIVATE src/)
 target_compile_definitions(test_sound PRIVATE CORNCOB_ASSET_DIR="${CMAKE_SOURCE_DIR}/assets/original")
