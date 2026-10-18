@@ -44,7 +44,18 @@ Main3::Main3(GameState& gs, engine::F3dVec& eng, World& world, DosKeyboard& kbd,
 }
 
 // ---- wtadj / uwtadj / dwtadj (3DMAC.INC) ----
-i16 Main3::wtadj(i16 v) const { return asmx::wtadj(v, W(M3(ofrmticks)), W(M3(ticksf))); }
+// wtadj truncated: at a short frame the small amounts the original handed it (a few units) lost a third or more of their
+// value, always in the same direction. The remainder is dithered instead (a low-discrepancy sequence), so on average the
+// full amount comes through whatever the frame length.
+i16 Main3::wtadj(i16 v) const {
+    const int den = W(M3(ticksf));
+    if (den <= 0) return v;
+    m_dither = (m_dither + 25) % static_cast<u32>(den);   // 25/40 ~ the golden ratio
+    const int64_t num = static_cast<int64_t>(v) * W(M3(ofrmticks)) + static_cast<int64_t>(m_dither);
+    int64_t q = num / den;
+    if (num % den < 0) q--;   // floor
+    return static_cast<i16>(std::max<int64_t>(-32768, std::min<int64_t>(32767, q)));
+}
 i16 Main3::uwtadj(i16 v) const { return asmx::uwtadj(v, W(M3(ofrmticks)), W(M3(ticksf))); }
 i32 Main3::dwtadj(i32 v) const {
     return sas::divrs_dw(sas::muls_dw(v, W(M3(ofrmticks))), W(M3(ticksf)));
@@ -60,7 +71,6 @@ i32 Main3::dwtadjWide(i32 v) const {
 }
 
 i32 Main3::frameScale(i32 v) const {
-    constexpr int64_t REF_TICKS = 58;   // the 20 fps frame
     const int64_t num = static_cast<int64_t>(v) * W(M3(ofrmticks));
     const int64_t q = (num >= 0 ? num + REF_TICKS / 2 : num - REF_TICKS / 2) / REF_TICKS;
     return static_cast<i32>(std::max<int64_t>(INT32_MIN, std::min<int64_t>(INT32_MAX, q)));
@@ -86,6 +96,9 @@ void Main3::velmul(u16 si, u16 bx, u16 di) {
 // 3.ASM: the start of the loop (7060-7234)
 // ==========================================================================================
 
+// a lifetime or rest time given for the 20 fps frame (uwtadj at that rate), as a count of those frames
+i16 Main3::uwtadjRef(i16 v) { return static_cast<i16>(static_cast<i32>(v) * 40 / REF_TICKS); }
+
 void Main3::timing() {
     SW(M3(nframes), add16(W(M3(nframes)), 1));
     u16 ax = m_clock.frmticks;
@@ -106,6 +119,12 @@ void Main3::timing() {
         SW(M3(ofrmticks), 50 * 8);
         SB(M3(advflag), 0xFF);
     }
+    // the 20 fps frames this frame is worth: the counters the original ran down one a frame (lifetimes, rest times)
+    // run down this many a frame, the whole frames of the time passed with the rest carried on
+    m_fineAngles = W(M3(ofrmticks)) < static_cast<i16>(REF_TICKS * 3 / 4);
+    m_refAcc += static_cast<u32>(W(M3(ofrmticks)));
+    m_refSteps = static_cast<u16>(m_refAcc / REF_TICKS);
+    m_refAcc %= REF_TICKS;
 }
 
 // 7137-7233: pause and help. The original blocks in a loop until a second 'p' (or escape); here

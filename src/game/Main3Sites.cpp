@@ -223,7 +223,7 @@ void Main3::sauceraa(u16 si) {
     if (m_world.expstrt(static_cast<u16>(M3(fltsm1aashell)), shell)) return;
     SW(M3(expobj), static_cast<i16>(shell));
     SB(shell + 18, 0);
-    SW(shell + 52, uwtadj(static_cast<i16>(d::m3_equ::aashelltime)));   // relative to machine speed
+    SW(shell + 52, uwtadjRef(static_cast<i16>(d::m3_equ::aashelltime)));   // relative to machine speed
     SW(shell + 24, static_cast<i16>(UW(shell + 24) | 0x8000));
     for (int k = 0; k < 4; k++) SW(shell + 2 * k, W(si + 2 * k));   // the gun's x and y
     const u32 z = static_cast<u32>(UW(si + 8)) + d::m3_equ::dbsz * 4;   // a little above the muzzle
@@ -397,7 +397,7 @@ void Main3::dbsttim(u16 si, u16 di, bool carry) {
     SW(st::dbstrest, W(q + 4));
     if (!(UW(si + 52) < 100)) return;   // not due for another ball
     if (UW(M3(ndballs)) >= UW(st::maxndballs)) {   // too many: don't let the site blow up just for that
-        SW(si + 52, add16(W(si + 52), 1));
+        SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));
         return;
     }
     resetdbst(si);
@@ -415,7 +415,7 @@ bool Main3::strtvech(u16 src) {
     if (m_world.expstrt(static_cast<u16>(M3(objvech)), neu)) return true;
     SW(M3(expobj), static_cast<i16>(neu));
     SB(neu + 18, 0);
-    SW(neu + 52, uwtadj(W(st::vechtime)));   // relative to machine speed
+    SW(neu + 52, uwtadjRef(W(st::vechtime)));   // relative to machine speed
     u16 q = static_cast<u16>(UW(st::initialqual) & 7);
     q = static_cast<u16>((q >> 4) | (q << 12));
     SW(neu + 24, static_cast<i16>(UW(neu + 24) | q | 0x8000));
@@ -434,7 +434,7 @@ void Main3::killvech(u16 si) {
     SW(si + 8, static_cast<i16>(2 * d::m3_equ::veszht));
     SW(si + 16, 20000);   // roll it over
     SW(si + 14, 2400);    // nose it down a little
-    SW(si + 52, uwtadj(800));
+    SW(si + 52, uwtadjRef(800));
     SB(si + 24, 0x71);    // undestructable, but crashintoable
     SW(si + 10, 0);
     for (int k = 0; k < 3; k++) SW(si + 46 + 2 * k, 0);
@@ -563,7 +563,7 @@ void Main3::vechtim(u16 si, u16 di, bool carry) {
     SB(M3(vechantclr), 0);
     if (W(si + 24) & 0x800) {   // special: can't die, the antenna flashes
         if (m_clock.oticks & 512) SB(M3(vechantclr), 15);
-        SW(si + 52, add16(W(si + 52), 1));
+        SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));
     }
     incW(st::curnvechs);
     q = UW(st::qtblptr);

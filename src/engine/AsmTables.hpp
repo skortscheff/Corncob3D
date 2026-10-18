@@ -3,6 +3,7 @@
 // Angles are 16-bit binary angles: 32768 = pi. ssin/scos return 1.15 fixed point.
 
 #pragma once
+#include <cmath>
 #include <cstdint>
 
 namespace corncob::engine {
@@ -69,6 +70,16 @@ inline int16_t atn2(int16_t xIn, int16_t yIn) {
     if (cl & 1) ax = static_cast<uint16_t>(-static_cast<int16_t>(ax));
     if (cl & 2) ch = static_cast<uint8_t>(ch + 128);
     return static_cast<int16_t>(static_cast<uint16_t>(ax + (static_cast<uint16_t>(ch) << 8)));
+}
+
+// atn2 without the table: the same angle to the nearest unit. The table (1024 entries per octant, indexed by the floor of the
+// slope) leaves the angle on a grid of about 8 units with a bias, which is fine at 20 frames a second but at a shorter frame
+// swallows or inflates each frame's small turn.
+inline int16_t atn2Fine(int16_t xIn, int16_t yIn) {
+    if (xIn == 0 && yIn == 0) return 0;
+    const double a = std::atan2(static_cast<double>(yIn), static_cast<double>(xIn));
+    const long u = std::lround(a * (65536.0 / 6.283185307179586));
+    return static_cast<int16_t>(static_cast<uint16_t>(u & 0xFFFF));
 }
 
 // DSQRT.ASM dsqrt: square root of dx:ax (as the ASM does it, including that the result is the

@@ -112,7 +112,7 @@ void Main3::expmov() {
             SW(si + 24, 0);
             continue;
         }
-        SW(si + 52, sub16(W(si + 52), 1));
+        SW(si + 52, sub16(W(si + 52), static_cast<i16>(m_refSteps)));
         SW(M3(objdisp), W(si + 60));
         SW(M3(objdamp), W(si + 62));
         SW(M3(tckgrav), static_cast<i16>(UW(si + 64) & 0x00FF));   // only the low byte has gravity
@@ -167,7 +167,7 @@ bool Main3::strtflt(u16 src, u16 count) {
         else SW(neu + 50, add16(W(neu + 50), spread(exprand)));
         SB(neu + 18, 0);   // near
         const u16 time = B(M3(omniflag)) == 0 ? d::m3_equ::exptime : d::m3_equ::omnitime;
-        const u16 base = static_cast<u16>(uwtadj(static_cast<i16>(time)));   // relative to machine speed
+        const u16 base = static_cast<u16>(uwtadjRef(static_cast<i16>(time)));   // relative to machine speed
         const u16 life = static_cast<u16>(m_rand.randr_w(base) + (base >> 2));   // at least 1/4 of the time
         SW(neu + 52, static_cast<i16>(life));
         SW(neu + 24, static_cast<i16>(UW(neu + 24) | 0x8000));   // a timed object
@@ -189,7 +189,7 @@ bool Main3::strtincend(u16 src, u16 count) {
         SW(neu + 48, spread(300));
         SW(neu + 50, static_cast<i16>(m_rand.randr_w(1200)));
         SB(neu + 18, 0);
-        SW(neu + 52, uwtadj(150));   // live for 150 frames
+        SW(neu + 52, uwtadjRef(150));   // live for 150 frames
         SW(neu + 24, static_cast<i16>(UW(neu + 24) | 0x8000));
         SW(neu + 54, static_cast<i16>(m_rand.randr_w(4000)));
         SW(neu + 56, static_cast<i16>(m_rand.randr_w(4000)));
@@ -352,7 +352,7 @@ void Main3::qincfdest(u16 di) {
 // DEFOBJS.ASM fdest: a friendly takes a hit
 void Main3::fdest(u16 si, u16 di, bool carry) {
     if (!carry) {
-        SW(si + 52, add16(W(si + 52), 1));   // check our time on earth
+        SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));   // check our time on earth
         return;
     }
     if (!fdestcheck(si, di, true)) return;
@@ -380,7 +380,7 @@ void Main3::fdestrdr(u16 si, u16 di, bool carry) {
 // gmdest: a ground missile site
 void Main3::gmdest(u16 si, u16 di, bool carry) {
     if (!carry) {
-        SW(si + 52, add16(W(si + 52), 1));   // check our time on earth
+        SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));   // check our time on earth
         SW(M3(curnticks), add16(W(M3(curnticks)), 1));
         return;
     }

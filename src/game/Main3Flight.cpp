@@ -321,7 +321,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
             if (W(M3(pitdoth)) < 0) {                 // already moving the right way
                 toInair = true;
             } else {
-                bounce(add32(dwGet(M3(pitdotl), M3(pitdoth)), 1000));
+                bounce(add32(dwGet(M3(pitdotl), M3(pitdoth)), frameScale(1000)));
             }
         }
         if (!toInair) {
@@ -330,7 +330,7 @@ void Main3::flightDynamics(i16 stickRoll, i16 stickPitch) {
             } else if (W(M3(pitdoth)) >= 0) {
                 toInair = true;                       // don't bounce if in the correct direction
             } else {
-                bounce(add32(dwGet(M3(pitdotl), M3(pitdoth)), -1000));
+                bounce(add32(dwGet(M3(pitdotl), M3(pitdoth)), frameScale(-1000)));
             }
         }
         (void)nosedropDone;

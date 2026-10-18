@@ -198,7 +198,7 @@ void Main3::damageplane(u16 count) {
 void Main3::wingdam() {
     if (static_cast<u16>(std::abs(static_cast<int>(W(M3(thrdam))))) > 80 * 20) return;   // no more than 20 hits worth
     drawdamage(1);
-    i16 dx = uwtadj(W(M3(thrdamunit)));   // lessen the effect on slower machines
+    i16 dx = uwtadjRef(W(M3(thrdamunit)));   // lessen the effect on slower machines
     if (static_cast<i16>(m_rand.rand_w()) < 0) dx = neg16(dx);   // affect a random wing
     SW(M3(thrdam), add16(W(M3(thrdam)), dx));
     SW(M3(wingloss), add16(W(M3(wingloss)), W(M3(winglossunit))));   // put a hole in the lift
@@ -207,7 +207,7 @@ void Main3::wingdam() {
 void Main3::yawdamage() {
     if (static_cast<u16>(std::abs(static_cast<int>(W(M3(yawdam))))) > 15 * 20) return;
     drawdamage(3);
-    i16 dx = uwtadj(W(M3(yawdamunit)));
+    i16 dx = uwtadjRef(W(M3(yawdamunit)));
     i16 ax = static_cast<i16>(m_rand.rand_w());   // affect a random side
     if (W(M3(yawdam)) != 0) ax = W(M3(yawdam));   // (damage already: the sign follows it)
     if (ax < 0) dx = neg16(dx);
@@ -215,7 +215,7 @@ void Main3::yawdamage() {
 }
 
 void Main3::stabdamage() {
-    SW(M3(stabdam), add16(W(M3(stabdam)), uwtadj(W(M3(stabunit)))));
+    SW(M3(stabdam), add16(W(M3(stabdam)), uwtadjRef(W(M3(stabunit)))));
     drawdamage(2);
 }
 
@@ -625,6 +625,7 @@ void Main3::takedrugs() {
 // MAT.ASM getang: the three angles (yaw, pitch, roll) out of a rotation matrix at [bx], into [si]
 void Main3::getang(u16 bx, u16 si) {
     auto madd = [](i16 a, i16 b) { return asmx::madd(a, b); };
+    const auto atn2 = [this](i16 x, i16 y) { return m_fineAngles ? engine::atn2Fine(x, y) : engine::atn2(x, y); };
     const i16 x = W(bx), y = W(bx + 6);
     const u8 yh = static_cast<u8>(static_cast<u16>(y) >> 8), xh = static_cast<u8>(static_cast<u16>(x) >> 8);
     const bool ysmal = yh == 0 || yh == 0xFF;

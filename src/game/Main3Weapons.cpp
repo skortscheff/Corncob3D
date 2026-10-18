@@ -89,7 +89,7 @@ void Main3::bulstrt() {
     SW(bx + 46, hmul(di, W(mat)));
     SW(bx + 48, hmul(di, W(mat + 6)));
     SW(bx + 50, hmul(di, W(mat + 12)));
-    SW(bx + 52, uwtadj(W(M3(bullife))));   // relative to machine speed
+    SW(bx + 52, uwtadjRef(W(M3(bullife))));   // relative to machine speed
     SB(bx + 18, 0);                         // near
     const u16 org = static_cast<u16>(W(M3(bulorgptr)));
     for (int k = 0; k < 6; k++) SW(bx + 2 * k, W(org + 2 * k));
@@ -135,7 +135,7 @@ void Main3::bulmov() {
             SW(si + 24, 0);   // bulkil
             continue;
         }
-        SW(si + 52, sub16(W(si + 52), 1));
+        SW(si + 52, sub16(W(si + 52), static_cast<i16>(m_refSteps)));
         bobjmov(si);
     }
 }
@@ -288,7 +288,7 @@ void Main3::bombtim(u16 si, bool carry) {
         SW(si + 14, 0);
         SW(si + 16, 0);
         SB(si + 26, 0);    // no rotation
-        u16 bx = static_cast<u16>(uwtadj(static_cast<i16>(W(M3(cratertime)))));   // a crater lasts only so long
+        u16 bx = static_cast<u16>(uwtadjRef(static_cast<i16>(W(M3(cratertime)))));   // a crater lasts only so long
         SW(M3(cratertimem1), static_cast<i16>(bx - 100));
         if (W(si + 24) & 2) bx >>= 4;
         SW(si + 52, static_cast<i16>(bx));
@@ -326,7 +326,7 @@ void Main3::crtrtim(u16 si, bool carry) {
     if (carry) return;
     SB(M3(crtrclr), 0);   // black by default
     if (W(si + 24) & 0x800) {   // lives forever
-        SW(si + 52, add16(W(si + 52), 1));
+        SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));
         SW(si + 24, static_cast<i16>(UW(si + 24) | 0xE0));   // lethal for the plane
         SB(M3(crtrclr), 6);   // brown
         return;

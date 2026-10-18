@@ -88,7 +88,7 @@ void Main3::bmrstim(u16 si, u16 di, bool carry) {
         make = !(m_rand.rand_w() > bx);   // don't make one right away
     }
     if (!make) {
-        SW(si + 52, add16(W(si + 52), 1));   // don't let us disappear
+        SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));   // don't let us disappear
         return;
     }
     SW(st::initialqual, static_cast<i16>(quality(UW(si + 24))));
@@ -288,7 +288,7 @@ void Main3::bmrtim(u16 si, u16 di, bool carry) {
                         SB(ball + 64, 20);
                         SW(ball + 60, 20);
                         SW(ball + 62, 16000);
-                        SW(ball + 52, add16(uwtadj(60), static_cast<i16>(d::m3_equ::dballtime2)));   // inactive for 3 seconds
+                        SW(ball + 52, add16(uwtadjRef(60), static_cast<i16>(d::m3_equ::dballtime2)));   // inactive for 3 seconds
                     }
                 }
             }
@@ -354,7 +354,7 @@ void Main3::stettim(u16 si, u16 di, bool carry) {
         m_eng.distcolors();
         return;
     }
-    SW(si + 52, add16(W(si + 52), 1));   // the object lasts forever
+    SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));   // the object lasts forever
     incW(st::curnstets);
     if (getobsvec(si, true) || UW(M3(dballdist)) > 1000) {   // we want the distance to us, not the plane
         SB(M3(tripflag), static_cast<u8>(B(M3(tripflag)) & ~1));
@@ -368,7 +368,7 @@ void Main3::stettim(u16 si, u16 di, bool carry) {
 
 void Main3::tettim(u16 si, u16 di, bool carry) {
     if (!carry) {
-        SW(si + 52, add16(W(si + 52), 1));   // the object lasts forever
+        SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));   // the object lasts forever
         incW(st::curntets);
         return;
     }
@@ -407,7 +407,7 @@ void Main3::altim(u16 si, u16 di, bool carry) {
     u8 qual;
     const u16 q = getqtblptr(st::alqtbl, si, qual);
     SB(M3(alclr), static_cast<u8>(UW(q)));
-    SW(si + 52, add16(W(si + 52), 1));   // mr alien never dies
+    SW(si + 52, add16(W(si + 52), static_cast<i16>(m_refSteps)));   // mr alien never dies
     if (!(W(si + 24) & 4)) {             // not destructable: gone when out of range
         if (B(si + 18) != 0) SW(si + 24, 0);
         return;
