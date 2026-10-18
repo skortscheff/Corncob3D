@@ -74,6 +74,10 @@ data skip themselves when it is missing.
 
 ## How this port came about
 
+I played Corncob 3-D as a kid on my DOS PC, and recently stumbled upon it again. Around the same time I enrolled in a
+Claude certification course, and this project grew out of that: a chance to put what I was learning to work on a game
+I had never forgotten.
+
 Corncob 3-D (1991-92, Pie in the Sky Software / MVP Software) was written in 8086 assembly for DOS, talking straight to
 EGA/VGA hardware, the AdLib chip and the PC keyboard interrupt. Its author later released the source, and it survived on
 the Wayback Machine and a public GitHub mirror (see `NOTICE.md`). The source is a snapshot that does not match the shipped
