@@ -85,10 +85,32 @@ shell, not the plain MSYS shell.
 
 ## Game data
 
-The original shareware data files are **not** in this repository (they are copyrighted). Obtain the Corncob 3-D shareware
-release yourself, and extract it into `assets/original/` so that `assets/original/IMG/3D.IMG` exists. For a packaged copy
-put the same folder as `assets\original` next to the exe. The exe searches upward from its own folder. Tests that need the
-data skip themselves when it is missing.
+**You need the original game files to play, but not to build.** The code compiles, and the program builds, without them;
+the files are read when the game runs. Only the tests that fly or load real game content need them too, and without them
+those tests are reported as skipped. So build in any order, but add the data before you run the game.
+
+The data files are **not** in this repository, because they are copyrighted. Obtain the Corncob 3-D **shareware release**
+yourself (the original distribution, as a zip) and extract it so that this file exists:
+
+```
+assets/original/IMG/3D.IMG
+```
+
+The extracted folder should look like the shipped game: `IMG/`, `DEF/` (the theaters `DUSK`, `MORNING`, `WASTELND`,
+`WHTSANDS`), `VGA/`, `THT/`, the music files (`*.ROL`, `CCMUSIC.BNK`), `3.ADL` (the AdLib sound data), the text documents
+(`CORNCOB.DOC` and others), and so on. You can also copy the original `3.EXE` and the other programs along with the rest;
+the port does not run them.
+
+**Where the game looks.** The exe looks for `assets/original/IMG/3D.IMG` starting in its own folder and then in up to five
+parent folders, and also relative to the folder you launch it from. That is why `build/corncob3d.exe` finds the data in the
+repository's own `assets/original/`, and why a packaged copy works with the data placed in an `assets/original` folder next
+to the exe (`cmake --build build --target package` creates that folder with a note in it).
+
+**Keep it out of git.** `assets/original/` is listed in `.gitignore`. Please don't commit or redistribute those files
+through this repository.
+
+**If the game won't start properly,** the usual cause is missing data. Check that `assets/original/IMG/3D.IMG` exists
+in one of the places above. (The port does not yet show a friendly "game data not found" message.)
 
 ## How this port came about
 
