@@ -82,5 +82,15 @@ menus unattended, `--fake-mission`, `--spawn-enemies`, `--end-pictures`, `--spac
 - The source tree is a later snapshot than the shipped `3.EXE`: it is built as `guns=1`, `slalom=0`, `getunivbin=0`.
 - Decisions where the original is unclear or buggy are listed in `docs/PORT_PLAN.md`.
 
-Corncob 3-D is © 1991-92 Pie in the Sky Software / MVP Software; the music is © James L. Collymore. This repository holds
-the port's code, not the game's data.
+## License and credits
+
+- The port's code (`src/`, `tests/`, `tools/`, `docs/`, build files) is **MIT licensed** — see `LICENSE`. Contributions are welcome.
+- The original assembly source in the repository root is by Kevin Stokes / Pie in the Sky Software. Its author publicly
+  permitted free use of it; it is not relicensed here. Source: the [foone/Corncob3D](https://github.com/foone/Corncob3D)
+  mirror, originally released in 2001 ([Wayback snapshot](https://web.archive.org/web/20020108042105/http://psky.com/prog/downloads.htm)).
+- [ymfm](https://github.com/aaronsgiles/ymfm) (BSD 3-Clause, © Aaron Giles) emulates the AdLib chip; SDL2 (zlib) handles window, input and audio output.
+- Corncob 3-D is © 1991-92 Pie in the Sky Software / MVP Software; the music is © James L. Collymore. This repository holds
+  the port's code, not the game's data, which you must supply yourself.
+
+Full details, including what is deliberately not included, are in `NOTICE.md`. This is an unofficial fan project, not
+affiliated with the original authors or publisher.
