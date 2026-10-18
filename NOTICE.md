@@ -23,6 +23,10 @@ and `F3DEQU.INC`):
 
 Provenance, as documented by the public mirror <https://github.com/foone/Corncob3D>:
 
+- The same 1994 source archive (3srcj12.zip) is also on the Internet Archive, uploaded 2018-04-12 as "Corncob 3D source code" (creator MVP Software, uploader dosnostalgic): <https://archive.org/details/3srcj12>. That page states no license.
+- The same 1994 source archive (`3srcj12.zip`) is also on the Internet Archive, uploaded on 2018-04-12 as
+  "Corncob 3D source code" (creator MVP Software, uploader dosnostalgic): <https://archive.org/details/3srcj12>.
+  That page states no license.
 - The source was released by its author in 2001 on psky.com. Archived page:
   <https://web.archive.org/web/20020108042105/http://psky.com/prog/downloads.htm>
 - It was republished on 2018-04-11:

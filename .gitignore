@@ -11,3 +11,6 @@ assets/original/
 tools/dosbox/
 tools/dosbox-dl/
 run/
+
+# Tool state created by the GitHub CLI
+.local/
