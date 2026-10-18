@@ -125,6 +125,25 @@ and for looking at one thing (the full list is at the top of `src/main.cpp`): `-
 directly, `--screenshot <bmp> --frames <n> --keyscript "<frame>+<hex>;..."` run one unattended, `--ui-keys` / `--ui-shots` drive the
 menus unattended, `--fake-mission`, `--spawn-enemies`, `--end-pictures`, `--space-shot`, `--play-rol`, `--wav-rol`.
 
+## Quality-of-life enhancements
+
+Beyond a faithful port, a few things were added so it plays comfortably on a modern PC. Each can be switched back to the
+original behavior.
+
+- **60 fps simulation.** The original ran at about 20 frames per second. The port runs at 60 by default, with flight,
+  weapons and timers rescaled so the plane still handles like the original. 20 fps is available in
+  `keyboard/Joystick setup` or with `--fps 20`.
+- **Xbox-style gamepad.** Left stick flies, right stick looks around, `A` guns, `X` missiles, `B` bomb, `Y` flaps, `Back`
+  eject, `Start` pause. On foot after ejecting, the left stick walks and strafes and the right stick looks.
+- **HD scaling.** Missions can be drawn at 1x to 4x the original 640x350 (`--hd <n>` or the setup menu), keeping the EGA look.
+- **Modern instrument panel.** Anti-aliased dials, lamps and bars over the EGA picture. `--classic-panel` restores the
+  original panel.
+- **Rebindable keys.** `keyboard/Joystick setup` > `reDefine keys`; bindings are saved in your settings.
+- **Persistent pilots and settings.** Careers, high scores and options are kept in your user data folder
+  (`--save-dir` changes it).
+- **No DOS setup needed.** No `CONFIG.SYS` tweaking, no sound card IRQs, no CPU-speed throttling. It runs in a normal
+  window, and AdLib sound and music are emulated.
+
 ## Layout
 
 | Path | Contents |
