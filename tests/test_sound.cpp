@@ -36,8 +36,7 @@ static double rms(Opl& opl, int frames) {
 
 int main(int, char**) {
     if (!std::ifstream(std::string(CORNCOB_ASSET_DIR) + "/3.ADL")) {
-        std::printf("test_sound: original 3.ADL not found, skipped
-");
+        std::printf("test_sound: original 3.ADL not found, skipped\n");
         return 0;
     }
     GameState gs;
