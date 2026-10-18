@@ -47,6 +47,7 @@ constexpr int EHMIN = 720;
 // ==========================================================================================
 void Main3::startUp(bool readFile) {
     for (int k = 0; k < 3; k++) { m_velFrac[k] = 0; m_angFrac[k] = 0; m_posFrac[k] = 0; }
+    m_thrFrac = 0;
     m_refAcc = 0;
     m_refSteps = 1;
     m_refTotal = 0;

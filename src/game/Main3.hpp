@@ -382,6 +382,7 @@ private:
     u16 m_velFrac[3] = {0, 0, 0};   // fractions of a velocity unit carried between frames (the plane frame)
     u16 m_angFrac[3] = {0, 0, 0};   // fractions of an angle unit: pitch, yaw, roll
     i32 m_posFrac[3] = {0, 0, 0};   // the position bits shifted out each frame by moveme
+    u16 m_thrFrac = 0;              // the fraction of a throttle step (a held key moves it by a step per 20 fps frame)
     bool m_mapActive = false;    // maploop is running
     bool m_mapCockpit = false;   // it was started from the cockpit, which has to come back
 };

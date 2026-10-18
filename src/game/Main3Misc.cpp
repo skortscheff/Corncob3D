@@ -247,6 +247,9 @@ void Main3::dotower() {
 // ==========================================================================================
 void Main3::throttleKeys() {
     if (B(M3(ejectflag)) != 0 && B(M3(remoteflag)) == 0) return;   // no throttle on foot
+    // a held key moved the throttle 20 a frame at the original's pace; the same speed at any frame rate
+    i16 step = 20;
+    if (m_fineAngles) step = takeWhole(static_cast<i32>(20 * 65536LL * W(M3(ofrmticks)) / REF_TICKS), m_thrFrac);
     if (key(0x0D) || key(0x4E)) {   // '+'
         bool noplus = false;
         if ((UW(M3(obj5dbits)) & 0x2000) && B(M3(aceflag)) == 0) noplus = true;   // the superplane needs an ace
@@ -255,7 +258,7 @@ void Main3::throttleKeys() {
                 SB(M3(freezeflag), 0);   // a stopped plane gets moving again
                 SB(M3(helpflashflag), 0);
                 drawbutton(0x0107, 12);   // turn off the blue letters
-                SW(M3(rpm), add16(W(M3(rpm)), 20));
+                SW(M3(rpm), add16(W(M3(rpm)), static_cast<u16>(step)));
                 if (sf16(W(M3(currpmx)), W(M3(rpm)))) SW(M3(rpm), sub16(W(M3(currpmx)), 3));
             } else if ((UW(M3(obj5dbits)) & 0x100) && B(M3(ejectflag)) == 0) {
                 SB(M3(crshflg), 8);   // pushing the throttle of a destroyed plane
@@ -263,7 +266,7 @@ void Main3::throttleKeys() {
         }
     }
     if (key(0x0C) || key(0x4A)) {   // '-'
-        SW(M3(rpm), sub16(W(M3(rpm)), 20));
+        SW(M3(rpm), sub16(W(M3(rpm)), static_cast<u16>(step)));
         if (sf16(W(M3(rpm)), 20)) SW(M3(rpm), 20);
     }
 }

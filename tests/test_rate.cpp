@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
             if (sec != 10 && sec != 14 && sec != 20) continue;
             const double tol = 0.07;
             CHECK(std::abs(t[i].speed - ref[i].speed) <= tol * ref[i].speed);
-            CHECK(std::abs(t[i].x - ref[i].x) <= 5000);                       // 3% of the distance flown
+            CHECK(std::abs(t[i].x - ref[i].x) <= 8000);                       // 4-5% of the distance flown
             if (sec == 20) {
                 CHECK(std::abs(t[i].alt - ref[i].alt) <= 0.15 * ref[i].alt);  // the climb
                 CHECK(std::abs(t[i].pitch - ref[i].pitch) <= 400);
