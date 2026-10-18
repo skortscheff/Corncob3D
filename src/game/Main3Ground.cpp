@@ -42,7 +42,7 @@ inline i32 cwd(i16 a) { return static_cast<i32>(a); }
 
 constexpr int EHMIN = 720;       // 4*3*l
 constexpr int MAXZSPR = 540;
-constexpr int ZSPR4 = 0;         // set below from the generated constant
+constexpr int ZSPR4 = EHMIN / 2 / 4;   // zspr = ehmin/2, zspr4 = zspr/4
 
 } // namespace
 

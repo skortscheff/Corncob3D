@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
             std::vector<TimedKey> part;
             for (const TimedKey& k : keys) if (k.t >= f / fps - 1e-9 && k.t < (f + 1) / fps - 1e-9) part.push_back({0, k.down, k.code});
             r.flyTimed(1.0 / fps, part);
-            std::printf("%.3f %d %d %d %d\n", (f + 1) / fps, r.gs.dw(d::m3::ox + 8), r.gs.b(d::m3::groundflag), r.gs.w(d::m3::topv), r.gs.w(d::m3::orvec + 2));
+            std::printf("%.3f oz=%d g=%d topv=%d pit=%d rtz=%d spr=%d bh=%d zg=%d ozeff=%d rpm=%d thrdot=%d\n", (f + 1) / fps, r.gs.dw(d::m3::ox + 8), r.gs.b(d::m3::groundflag), r.gs.w(d::m3::topv), r.gs.w(d::m3::orvec + 2), r.gs.w(d::m3::rtopv + 4), r.gs.w(d::m3::springforce), r.gs.w(d::m3::bounceheight), r.gs.dw(d::m3::zground), r.gs.dw(d::m3::ozeff), r.gs.w(d::m3::rpm), r.gs.dw(d::m3::thrdotl));
         }
         return 0;
     }
