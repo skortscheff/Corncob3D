@@ -2,6 +2,7 @@
 // The simulation is deterministic, so any drift in a checkpoint means the flight model changed.
 //   test_demo [file.demo]            replay and compare (default: tests/demos/takeoff.demo)
 //   test_demo --record [file.demo]   replay and rewrite the `expect` lines of the file
+//   CC_TRACE=<seconds> test_demo     print time, altitude, ground flag, speed and pitch for every frame instead
 // Demo file lines:  theater NAME | fps N | key SECONDS down|up HEXCODE | expect SECONDS alt x y speed yaw pitch roll
 // Needs the original DEF files (assets/original, never committed); skipped when missing.
 
@@ -87,6 +88,16 @@ int main(int argc, char** argv) {
     }
 
     Run r(theater.c_str(), false, fps);
+    if (const char* tr = std::getenv("CC_TRACE")) {   // per frame: time oz ground topv pitch
+        const double secs = std::atof(tr);
+        for (int f = 0; f < secs * fps; f++) {
+            std::vector<TimedKey> part;
+            for (const TimedKey& k : keys) if (k.t >= f / fps - 1e-9 && k.t < (f + 1) / fps - 1e-9) part.push_back({0, k.down, k.code});
+            r.flyTimed(1.0 / fps, part);
+            std::printf("%.3f %d %d %d %d\n", (f + 1) / fps, r.gs.dw(d::m3::ox + 8), r.gs.b(d::m3::groundflag), r.gs.w(d::m3::topv), r.gs.w(d::m3::orvec + 2));
+        }
+        return 0;
+    }
     std::vector<Expect> got;
     double done = 0;
     for (const double t : times) {
