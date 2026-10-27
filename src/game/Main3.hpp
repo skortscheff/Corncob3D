@@ -75,7 +75,10 @@ public:
     void crashSound(bool boom) override;
 
     // The AdLib sound; without it the game is silent
-    void setSound(Sound* s) { m_snd = s; }
+    void setSound(Sound* s) {
+        m_snd = s;
+        m_eng.onFlip([this] { qstopblam(); });
+    }
 
     // What 3.ASM does once the loop is over, before the result file is written: the planes lost lose the
     // kill-me-tough ones (they were suicide missions), and the status is patched for them
@@ -287,6 +290,7 @@ private:
     void klaSound();
     void engineSound();
     void makeboom();
+    void qstopblam();
     void bigboom();
     void soundToggle();
 

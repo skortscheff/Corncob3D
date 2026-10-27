@@ -1447,7 +1447,7 @@ void F3dVec::flipage() {
         shake = true;
     }
     if (shake) bl = (W(FRMNUM) & 1) ? bh : 0;
-    // qstopblam (sound) belongs to the audio phase
+    if (m_flipHook) m_flipHook();   // qstopblam
     SB(PGFLG, B(PGFLG) ^ 0xFF);
     SW(VBOFF, B(PGFLG) ? 0 : 0x7e00);
     m_scr.flip();

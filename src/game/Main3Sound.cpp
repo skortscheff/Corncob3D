@@ -162,6 +162,15 @@ void Main3::makeboom() {
     voiceon(2, 0);
 }
 
+// F3DVEC.ASM qstopblam, on every page flip: once the screen has stopped shaking the blam of a crash is keyed off and
+// the time noted, so that makeboom can turn the voice back into a boom after a while. (Without it the voice sustains
+// and, with blamtick left at -1, makeboom never plays an explosion again.)
+void Main3::qstopblam() {
+    if (!m_snd || B(M3(shakecnt)) != 0 || W(M3(blamtick)) != -1) return;
+    voiceoff(2, 0x10);
+    SW(M3(blamtick), static_cast<i16>(m_clock.oticks));
+}
+
 // STRTEXP.ASM bigboom: the drum for a big explosion
 void Main3::bigboom() {
     if (!m_snd) return;

@@ -17,6 +17,7 @@
 // slam (Phases 3 and 5, stubbed in drawnear), getang (needs ATN.ASM atn2).
 
 #pragma once
+#include <functional>
 #include "game/GameState.hpp"
 #include "render/EgaScreen.hpp"
 #include <cstdint>
@@ -105,6 +106,8 @@ public:
     // ---- page, borders, palette ----
     void epage();
     void flipage();
+    // qstopblam: called on every page flip, after the screen shake has been counted down (the sound is the game's)
+    void onFlip(std::function<void()> f) { m_flipHook = std::move(f); }
     void readcolors();
     void unpackbits();
     void packbits();
@@ -198,6 +201,7 @@ private:
     std::vector<uint8_t> m_gscum = std::vector<uint8_t>(SGPTS + (2 + 2 * GNPTS) * 14 + 16, 0);
     GameState& m_g;
     EgaScreen& m_scr;
+    std::function<void()> m_flipHook;
     EgaPalette m_pal;
     int m_panX = 0, m_panY = 0;
 
