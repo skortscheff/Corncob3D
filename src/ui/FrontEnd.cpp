@@ -98,7 +98,7 @@ struct SetupMenus {
     }
 
     // ---- control setup ----
-    enum { K_KEYBOARD = 1, K_JOYSTICK, K_INVERT, K_KEYS, K_HD, K_FPS, K_PANEL, K_INFO, K_RETURN };
+    enum { K_KEYBOARD = 1, K_JOYSTICK, K_INVERT, K_KEYS, K_HD, K_SMOOTH, K_FPS, K_PANEL, K_INFO, K_RETURN };
 
     // the actions whose keys can be chosen, with the DOS scan code the game reads for each
     struct Action { const char* name; uint8_t dos; };
@@ -161,6 +161,7 @@ struct SetupMenus {
                 {std::string(s.invertPitch ? "stop in\\Verting" : "in\\Vert") + " the gamepad pitch", K_INVERT},
                 {"re\\Define keys", K_KEYS},
                 {fmt("\\High resolution: %dx  (640x350 times %d)", s.hd, s.hd), K_HD},
+                {std::string("\\Smoothing (anti-aliasing): ") + (s.smooth ? "on" : "off"), K_SMOOTH},
                 {fmt("\\Frame rate: %d frames per second", s.fps), K_FPS},
                 {std::string("instrument \\Panel: ") + (s.modernPanel ? "modern" : "original"), K_PANEL},
                 {"get \\Information about this menu", K_INFO},
@@ -168,12 +169,12 @@ struct SetupMenus {
             };
             const MenuResult r = runMenu(t, 4, 9, 50, items, kbSel, [&] {
                 header();
-                t.box(3, 4, 54, 18, WINDOW, "Keyboard/joystick setup");
+                t.box(3, 4, 54, 19, WINDOW, "Keyboard/joystick setup");
                 t.put(5, 5, "Use arrow keys or type highlighted", WINDOW);
                 t.put(5, 6, "letter to choose action:", WINDOW);
-                t.put(5, 18, "Current choices:", WINDOW);
-                t.put(5, 19, controlText() + " control.", WINDOW);
-                t.put(5, 20, "See the Keyboard Play chapter of the documentation.", WINDOW);
+                t.put(5, 19, "Current choices:", WINDOW);
+                t.put(5, 20, controlText() + " control.", WINDOW);
+                t.put(5, 21, "See the Keyboard Play chapter of the documentation.", WINDOW);
             });
             if (r.closed || r.id == -1 || r.id == K_RETURN) return;
             if (r.id == K_KEYBOARD) s.joystick = false;
@@ -181,6 +182,7 @@ struct SetupMenus {
             else if (r.id == K_INVERT) s.invertPitch = !s.invertPitch;
             else if (r.id == K_KEYS) redefineKeys();
             else if (r.id == K_HD) s.hd = s.hd % 4 + 1;
+            else if (r.id == K_SMOOTH) s.smooth = !s.smooth;
             else if (r.id == K_PANEL) s.modernPanel = !s.modernPanel;
             else if (r.id == K_FPS) s.fps = s.fps >= 60 ? 20 : 60;   // the original's 20, or the 60 Hz engine
             else if (r.id == K_INFO) info(Info::Keyboard, "Keyboard/Joystick Menu Information");
@@ -517,6 +519,7 @@ struct FrontEnd::Impl : SetupMenus {
         rq.useGamepad = s.joystick;
         rq.invertPitch = s.invertPitch;
         rq.hd = s.hd;
+        rq.smooth = s.smooth;
         rq.fps = s.fps;
         rq.modernPanel = s.modernPanel;
         fly(rq, nullptr, "Training Mission");
@@ -868,6 +871,7 @@ struct FrontEnd::Impl : SetupMenus {
         rq.comments = s.comments;
         rq.stockPlane = stock;
         rq.hd = s.hd;
+        rq.smooth = s.smooth;
         rq.fps = s.fps;
         rq.modernPanel = s.modernPanel;
         rq.useGamepad = s.joystick;

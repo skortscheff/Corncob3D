@@ -70,6 +70,7 @@ bool loadSettings(Settings& s) {
         else if (key == "activePilot") s.activePilot = rest;
         else if (key == "hd") s.hd = std::max(1, std::min(4, v));
         else if (key == "fps") s.fps = std::max(5, std::min(60, v));
+        else if (key == "smooth") s.smooth = v != 0;
         else if (key == "modernPanel") s.modernPanel = v != 0;
         else if (key == "bind") {
             int dos = 0, sdl = 0;
@@ -87,7 +88,7 @@ bool saveSettings(const Settings& s) {
         << s.invulnerableCombat << "\ntrainKla " << s.training.kla << "\ntrainAaa " << s.training.aaa << "\ntrainVehicles "
         << s.training.vehicles << "\ntrainKlaWicked " << s.training.klaWicked << "\ntrainAaaWicked " << s.training.aaaWicked
         << "\ntrainVehWicked " << s.training.vehWicked << "\ntrainInvulnerable " << s.training.invulnerable << "\nactivePilot "
-        << s.activePilot << "\nhd " << s.hd << "\nfps " << s.fps << "\nmodernPanel " << s.modernPanel << "\n";
+        << s.activePilot << "\nhd " << s.hd << "\nfps " << s.fps << "\nsmooth " << s.smooth << "\nmodernPanel " << s.modernPanel << "\n";
     for (const auto& b : s.bindings) out << "bind " << b.first << " " << b.second << "\n";
     return static_cast<bool>(out);
 }

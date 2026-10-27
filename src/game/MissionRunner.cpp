@@ -141,6 +141,7 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
     EgaScreen screen(rq.hd);
     engine::F3dVec eng(gs, screen);
     Display display(window.sdlRenderer());
+    display.setSmooth(rq.smooth);
     EgaImg panel;
     game::ModernPanel modernPanel(gs);
     const bool havePanel = loadImg(assetPath("IMG/3D.IMG"), panel);
@@ -280,6 +281,7 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
                 if (havePanel && gs.w(d::m3::ptrgwinf) == static_cast<i16>(d::m3::gwinf)) screen.drawPanel(panel, 0);
             }
             minFrameTicks = static_cast<int>(TickClock::FAST_HZ / st.fps);
+            display.setSmooth(st.smooth);
             modernOn = st.modernPanel;
             padOn = st.joystick;
             invertOn = st.invertPitch;

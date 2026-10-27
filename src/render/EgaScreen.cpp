@@ -107,9 +107,11 @@ void Display::convert(const EgaScreen& scr, const EgaPalette& pal, int panX, int
 }
 
 void Display::present(const EgaScreen& scr, const EgaPalette& pal, int panX, int panY) {
-    if (!m_tex || m_texW != scr.width() || m_texH != scr.height()) {
+    const bool filter = m_smooth && scr.scale() > 1;
+    if (!m_tex || m_texW != scr.width() || m_texH != scr.height() || m_texSmooth != filter) {
         if (m_tex) SDL_DestroyTexture(m_tex);
-        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, filter ? "1" : "0");   // read when the texture is made
+        m_texSmooth = filter;
         m_texW = scr.width();
         m_texH = scr.height();
         m_tex = SDL_CreateTexture(m_sdl, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, m_texW, m_texH);

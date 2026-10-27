@@ -33,6 +33,7 @@ struct Settings {
     TrainingSetup training;
     std::string activePilot;         // the name of the active pilot, empty for the trainee
     int hd = 1;                      // missions drawn at 1-4 times 640x350
+    bool smooth = true;              // HD pictures filtered down to the window (anti-aliasing); no effect at 1x
     bool modernPanel = true;         // the smooth instrument panel instead of the EGA one
     int fps = 60;                    // game frames per second: 60, or 20 as the original ran
     std::vector<std::pair<int, int>> bindings;   // keys the player chose: (DOS scan code, SDL scancode)

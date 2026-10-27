@@ -36,6 +36,7 @@ struct MissionRequest {
 
     // the display and the sound
     int hd = 1;
+    bool smooth = true;              // filter the HD picture down to the window (anti-aliasing)
     bool noSound = false;
     int fps = 20;
     bool modernPanel = true;         // the smooth instrument panel over the EGA one

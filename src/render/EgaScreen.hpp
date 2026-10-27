@@ -93,6 +93,10 @@ public:
     void present(const EgaScreen& scr, const EgaPalette& pal, int panX = 0, int panY = 0);
     bool saveBmp(const EgaScreen& scr, const EgaPalette& pal, const char* path) const;
 
+    // Smoothing: the picture is filtered when it is scaled to the window instead of stretched pixel by pixel.
+    // With HD (the page is larger than the window) this is supersampled anti-aliasing; at 1x the pixels stay sharp.
+    void setSmooth(bool on) { m_smooth = on; }
+
     // Drawn over the picture (given the rectangle it was copied to) just before it is shown: the modern panel
     void setOverlay(std::function<void(const SDL_Rect&)> f) { m_overlay = std::move(f); }
 
@@ -102,6 +106,7 @@ private:
     SDL_Renderer* m_sdl;
     SDL_Texture* m_tex = nullptr;
     int m_texW = 0, m_texH = 0;
+    bool m_smooth = false, m_texSmooth = false;
     std::vector<uint32_t> m_px;
     std::function<void(const SDL_Rect&)> m_overlay;
 };
