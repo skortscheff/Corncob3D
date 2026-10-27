@@ -33,6 +33,9 @@ using u32 = uint32_t;
 // A window record (F3DEQU.INC wxmin..ymaxdi) with HD scaling applied
 struct Win {
     i16 xmin, ymin, xmax, ymax, xsiz, ysiz, zxpln, zypln, xctr, yctr;
+    // zxpln/zypln scale the projection (HD multiplies them); zclipx/zclipy are the same planes unscaled, the
+    // depths in front of which things are clipped. That distance is in world units, so it does not grow with HD.
+    i16 zclipx, zclipy;
     i16 ymindi, ymaxdi;   // raw byte addresses, as stored
     int minRow, maxRow;   // rows rawhlinewin accepts: [minRow, maxRow)
     int fillRow, fillX;   // where scrfbx starts filling (ymindi as a row/pixel)

@@ -225,6 +225,8 @@ Win F3dVec::win(u16 off) const {
     w.ysiz = sc(off + 10);
     w.zxpln = sc(off + 12);
     w.zypln = sc(off + 14);
+    w.zclipx = W(off + 12);
+    w.zclipy = W(off + 14);
     w.xctr = sc(off + 16);
     w.yctr = sc(off + 18);
     w.ymindi = W(off + 20);
@@ -250,9 +252,9 @@ bool F3dVec::f3dpt(u16 si, u16 bx) {
     Win w = win(bx);
     i16 di = W(si);
     if (di < 0) return true;
-    if (!sf16(w.zxpln, di)) return true;
+    if (!sf16(w.zclipx, di)) return true;
     SW(ARGX1, add16(proj(W(si + 2), w.zxpln, di), w.xctr));
-    if (!sf16(w.zypln, di)) return true;
+    if (!sf16(w.zclipy, di)) return true;
     SW(ARGY1, add16(proj(W(si + 4), w.zypln, di), w.yctr));
     return drawpt(w);
 }
@@ -261,10 +263,10 @@ bool F3dVec::f3ddsc(u16 si, u16 bx) {
     Win w = win(bx);
     i16 di = W(si);
     if (di < 0) return true;
-    if (!sf16(w.zxpln, di)) return true;
+    if (!sf16(w.zclipx, di)) return true;
     SW(XC, add16(proj(W(si + 2), w.zxpln, di), w.xctr));
     SW(XW, idiv32(imul16(W(XW), w.zxpln), di).q);
-    if (!sf16(w.zypln, di)) return true;
+    if (!sf16(w.zclipy, di)) return true;
     SW(YC, add16(proj(W(si + 4), w.zypln, di), w.yctr));
     return drawdisc(w);
 }
@@ -272,7 +274,7 @@ bool F3dVec::f3ddsc(u16 si, u16 bx) {
 // Moves the nearer endpoint of the line at [si] onto the plane z = zxpln+1.
 // Shared by choplin and the front of f3dline.
 bool F3dVec::choplin(u16 si, u16 bx) {
-    const i16 zp = win(bx).zxpln;
+    const i16 zp = win(bx).zclipx;
     i16 a = sub16(W(si), zp), c = sub16(W(si + 6), zp);
     if ((a & c) & 0x8000) return true;      // both behind
     if (!((a | c) & 0x8000)) return false;  // both in front
@@ -367,9 +369,9 @@ bool F3dVec::f3dline(u16 si, u16 bx) {
     auto project = [&](u16 v, u32 ox, u32 oy) {
         i16 di = W(v);
         if (di <= 0) return false;
-        if (m_rdf == 0 && !sf16(w.zxpln, di)) return false;
+        if (m_rdf == 0 && !sf16(w.zclipx, di)) return false;
         SW(ox, add16(proj(W(v + 2), w.zxpln, di), w.xctr));
-        if (m_rdf == 0 && !sf16(w.zypln, di)) return false;
+        if (m_rdf == 0 && !sf16(w.zclipy, di)) return false;
         SW(oy, add16(proj(W(v + 4), w.zypln, di), w.yctr));
         return true;
     };
@@ -433,11 +435,11 @@ bool F3dVec::f3dpoly(u16 si, u16 bx) {
     m_pxmin = m_pymin = 32767;
     m_pxmax = m_pymax = -32767;
     m_lindex = 0;
-    m_pzypln = w.zxpln;
+    m_pzypln = w.zclipx;
     const i16 zmax = W(PZMAX);
     if (zmax < 0) return true;
-    if (w.zxpln >= zmax) return true;   // whole polygon too close
-    if (!(w.zxpln <= W(PZMIN))) {       // partly under us: clip it
+    if (w.zclipx >= zmax) return true;   // whole polygon too close
+    if (!(w.zclipx <= W(PZMIN))) {       // partly under us: clip it
         if (polyhell()) return true;
         si = TMP2BUF;
     }
@@ -449,13 +451,13 @@ bool F3dVec::f3dpoly(u16 si, u16 bx) {
         if (di < 0) return true;
         if (m_rdf == 0) {
             SW(PZMINBX, -3);
-            if (!sf16(w.zxpln, di)) return true;
+            if (!sf16(w.zclipx, di)) return true;
         }
         i16 x = add16(proj(W(si + 2), w.zxpln, di), w.xctr);
         SW(ARGX1, x);
         if (m_rdf == 0) {
             SW(PZMINBX, -4);
-            if (!sf16(w.zypln, di)) return true;
+            if (!sf16(w.zclipy, di)) return true;
         }
         i16 y = add16(proj(W(si + 4), w.zypln, di), w.yctr);
         if (!(y >= m_pymin)) m_pymin = y;
