@@ -274,7 +274,11 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
         if (rq.settings && padOn && input.hasGamepad() && input.padButton(SDL_CONTROLLER_BUTTON_START) && !startHeld) {
             startHeld = true;
             game.silence();   // the engine and the guns stop while the menu is up
-            runControlSetup(window, *rq.settings);
+            if (runControlSetup(window, *rq.settings, true)) {   // 'Return to the main menu'
+                out.toMainMenu = true;
+                running = false;
+                continue;
+            }
             const Settings& st = *rq.settings;
             if (st.hd != screen.scale()) {   // the panel is redrawn into the new pages
                 screen.setScale(st.hd);

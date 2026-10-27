@@ -74,6 +74,7 @@ struct SetupMenus {
     TextScreen& t;
     Settings& s;
     int kbSel = 0;
+    bool inMission = false;   // opened from a flight: the way out is back to the game or to the main menu
 
     bool closed() const { return t.quit(); }
 
@@ -98,7 +99,7 @@ struct SetupMenus {
     }
 
     // ---- control setup ----
-    enum { K_KEYBOARD = 1, K_JOYSTICK, K_INVERT, K_KEYS, K_HD, K_SMOOTH, K_FPS, K_PANEL, K_INFO, K_RETURN };
+    enum { K_KEYBOARD = 1, K_JOYSTICK, K_INVERT, K_KEYS, K_HD, K_SMOOTH, K_FPS, K_PANEL, K_INFO, K_RETURN, K_MAIN };
 
     // the actions whose keys can be chosen, with the DOS scan code the game reads for each
     struct Action { const char* name; uint8_t dos; };
@@ -153,9 +154,10 @@ struct SetupMenus {
             saveSettings(s);
         }
     }
-    void controlSetup() {
+    // true: the player chose to leave the mission for the main menu
+    bool controlSetup() {
         while (!closed()) {
-            const std::vector<MenuItem> items = {
+            std::vector<MenuItem> items = {
                 {"choose \\Keyboard control", K_KEYBOARD},
                 {"choose \\Joystick (gamepad) control too", K_JOYSTICK},
                 {std::string(s.invertPitch ? "stop in\\Verting" : "in\\Vert") + " the gamepad pitch", K_INVERT},
@@ -165,18 +167,27 @@ struct SetupMenus {
                 {fmt("\\Frame rate: %d frames per second", s.fps), K_FPS},
                 {std::string("instrument \\Panel: ") + (s.modernPanel ? "modern" : "original"), K_PANEL},
                 {"get \\Information about this menu", K_INFO},
-                {"\\Return to previous menu", K_RETURN},
+                {inMission ? "\\Return to the game" : "\\Return to previous menu", K_RETURN},
             };
+            if (inMission) items.push_back({"Return to the \\Main menu", K_MAIN});
+            const int extra = static_cast<int>(items.size()) - 10;   // rows below the menu move down
             const MenuResult r = runMenu(t, 4, 9, 50, items, kbSel, [&] {
                 header();
-                t.box(3, 4, 54, 19, WINDOW, "Keyboard/joystick setup");
+                t.box(3, 4, 54, 19 + extra, WINDOW, "Keyboard/joystick setup");
                 t.put(5, 5, "Use arrow keys or type highlighted", WINDOW);
                 t.put(5, 6, "letter to choose action:", WINDOW);
-                t.put(5, 19, "Current choices:", WINDOW);
-                t.put(5, 20, controlText() + " control.", WINDOW);
-                t.put(5, 21, "See the Keyboard Play chapter of the documentation.", WINDOW);
+                t.put(5, 19 + extra, "Current choices:", WINDOW);
+                t.put(5, 20 + extra, controlText() + " control.", WINDOW);
+                t.put(5, 21 + extra, "See the Keyboard Play chapter of the documentation.", WINDOW);
             });
-            if (r.closed || r.id == -1 || r.id == K_RETURN) return;
+            if (r.closed || r.id == -1 || r.id == K_RETURN) return false;
+            if (r.id == K_MAIN) {
+                if (confirmBox(t, "Leave the Mission", {"Abandon this mission and return to the main menu?", "", "Type <ENTER> to leave, almost anything else to stay..."}, '\0', true)) {
+                    saveSettings(s);
+                    return true;
+                }
+                continue;
+            }
             if (r.id == K_KEYBOARD) s.joystick = false;
             else if (r.id == K_JOYSTICK) s.joystick = true;
             else if (r.id == K_INVERT) s.invertPitch = !s.invertPitch;
@@ -188,6 +199,7 @@ struct SetupMenus {
             else if (r.id == K_INFO) info(Info::Keyboard, "Keyboard/Joystick Menu Information");
             saveSettings(s);
         }
+        return false;
     }
 };
 
@@ -200,6 +212,7 @@ struct FrontEnd::Impl : SetupMenus {
     std::vector<std::string> theaterNames;
     std::vector<TheaterInfo> theaterInfos;
     bool done = false;
+    bool toMain = false;   // a mission was left for the main menu: the menus above it close
     int mainSel = 0, trainSel = 0, combatSel = 0, dutySel = 0, hiSel = 0;
 
     Impl(TextScreen& screen, Settings& settings, MusicBox* m, MissionLauncher l)
@@ -321,6 +334,7 @@ struct FrontEnd::Impl : SetupMenus {
             {"e\\Xit Corncob 3D", M_EXIT},
         };
         while (!done && !closed()) {
+            toMain = false;
             const MenuResult r = runMenu(t, 4, 8, 46, items, mainSel, [&] { drawMain(); });
             if (r.closed) return;
             switch (r.id) {
@@ -423,6 +437,7 @@ struct FrontEnd::Impl : SetupMenus {
             case T_INFO: info(Info::Training, "Training Missions Information"); break;
             }
             saveSettings(s);
+            if (toMain) return;
         }
     }
 
@@ -537,6 +552,7 @@ struct FrontEnd::Impl : SetupMenus {
             t.setQuit();
             return;
         }
+        if (out.toMainMenu) toMain = true;
         if (!out.over) return;
         afterMission(rq, th, theaterName, out);
     }
@@ -668,6 +684,7 @@ struct FrontEnd::Impl : SetupMenus {
             case C_INFO: info(Info::Combat, "Combat Missions Information"); break;
             }
             saveSettings(s);
+            if (toMain) return;
         }
     }
 
@@ -1157,11 +1174,12 @@ struct FrontEnd::Impl : SetupMenus {
     }
 };
 
-void runControlSetup(Window& window, Settings& settings) {
+bool runControlSetup(Window& window, Settings& settings, bool inMission) {
     TextScreen screen(window);
     SetupMenus menus{screen, settings};
+    menus.inMission = inMission;
     menus.applyBindings();
-    menus.controlSetup();
+    return menus.controlSetup();
 }
 
 FrontEnd::FrontEnd(TextScreen& screen, Settings& settings, MusicBox* music, MissionLauncher launch)

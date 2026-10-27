@@ -57,6 +57,7 @@ struct MissionRequest {
 struct MissionOutcome {
     bool over = false;           // the mission ran to its end (not abandoned by closing the window)
     bool windowClosed = false;
+    bool toMainMenu = false;     // the player left the mission from the options menu: back to the main menu, no result
     uint16_t status = 0;         // the mission status bits (PICT.ASM lists them)
     uint16_t nfdest = 0;         // friendlies destroyed
     uint16_t deathcode = 0;

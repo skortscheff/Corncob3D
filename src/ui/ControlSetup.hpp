@@ -10,6 +10,8 @@ namespace corncob {
 class Window;
 struct Settings;
 
-void runControlSetup(Window& window, Settings& settings);
+// inMission: the menu ends with 'Return to the game' and 'Return to the main menu'; true comes back when the player chose the
+// main menu (the mission is abandoned).
+bool runControlSetup(Window& window, Settings& settings, bool inMission = false);
 
 } // namespace corncob
