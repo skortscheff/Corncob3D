@@ -12,7 +12,7 @@ the four shipped theaters, AdLib sound, the control tower, the end-of-mission pi
 `docs/PORT_PLAN.md` has the phase by phase record, the deliberate deviations and what was left out.
 
 Not done: several airfields per theater (the original supports nine, the shipped theaters have one), printing the
-documentation, real DOS joystick calibration. The raw-score weights, rank thresholds and medal rules are recreations; only the
+documentation. The raw-score weights, rank thresholds and medal rules are recreations; only the
 three score examples of the manual are original.
 
 ## Project status: an experiment, unsupported
@@ -150,7 +150,7 @@ highlighted letter. `Training missions` is the quick way into a plane; `Duty ros
 The flight keys are those of `CORNCOB.DOC` (keypad 8/2 nose down/up, 4/6 roll, 7/9 or z/x rudder, keypad +/- throttle,
 space guns, c missiles, b bomb, e eject, F1 boss screen, F2 the control tower's missions, F4 help ...). They can be changed
 in `keyboard/Joystick setup` > `reDefine keys`. An Xbox-style gamepad works as well: left stick flies, right stick looks, `A` guns,
-`X` missiles, `B` bomb, `Y` flaps, `Back` eject, `Start` pause (on foot: left stick walks, right stick looks).
+`X` missiles, `B` bomb, `Y` flaps, `Back` eject, `Start` options menu (on foot: left stick walks, right stick looks).
 
 The simulation runs at 60 frames per second by default (a reworked time base keeps flight, weapons and timers at the original's pace);
 `keyboard/Joystick setup` switches to the original's 20 and sets the high-resolution factor.
@@ -174,7 +174,7 @@ back to the original behavior.
   weapons and timers rescaled so the plane still handles like the original. 20 fps is available in
   `keyboard/Joystick setup` or with `--fps 20`.
 - **Xbox-style gamepad.** Left stick flies, right stick looks around, `A` guns, `X` missiles, `B` bomb, `Y` flaps, `Back`
-  eject, `Start` pause. On foot after ejecting, the left stick walks and strafes and the right stick looks.
+  eject, `Start` opens the options menu (D-pad and `A`/`B` work in it; `P` on the keyboard still pauses). On foot after ejecting, the left stick walks and strafes and the right stick looks.
 - **HD scaling.** Missions can be drawn at 1x to 4x the original 640x350 (`--hd <n>` or the setup menu), keeping the EGA look.
 - **Modern instrument panel.** Anti-aliased dials, lamps and bars over the EGA picture. `--classic-panel` restores the
   original panel.

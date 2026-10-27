@@ -59,6 +59,7 @@ public:
         m_padRudder = rudder;
     }
     bool paused() const { return m_paused; }
+    void silence() { voiceoff(0, 0x100); voiceoff(2, 0x10); }   // the engine and the blams fall silent (as in the pause)
     // Sideways walking on foot (the original has none), -1 = left, 1 = right, analog
     void setStrafe(float s) { m_strafe = s; }
 

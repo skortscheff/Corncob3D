@@ -59,7 +59,7 @@ Faithful port of the DOS game (MASM source in this repo) to C++17 / SDL2. Origin
   - Checked by ctest: `career` (scoring examples, pilots, medals, lists, files), `theaters` (what the shipped theaters
     hold), `frontend` (the menus driven by scripted keys end to end) and by screenshots.
   - Dev aids: `--ui-keys`, `--ui-shots`, `--fake-mission`, `--tower-test` (see the header of `main.cpp`).
-  - Left out: printing the documentation, the joystick calibration and the first-run screens (nothing to
+  - Left out: printing the documentation and the first-run screens (nothing to
     decompress, no DOS), the old registration menu, the sound editor. Only one airfield per theater is
     handled (the shipped theaters have one).
 - **Phase 9** `README.md`, a `package` build target, key redefinition (`DosKeyboard::setBindings`, saved in `settings.cfg`), the high

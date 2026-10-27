@@ -12,6 +12,8 @@
 
 namespace corncob {
 
+struct Settings;
+
 struct MissionRequest {
     // what is flown: a training mission builds its own universe (initperms); a combat mission reads the
     // theater files (3univ.dat / towers.dat as MOAG would have written them)
@@ -28,6 +30,9 @@ struct MissionRequest {
     bool stockPlane = false;                              // -h: issue a plane from storage
     bool useGamepad = true;                               // false: the keyboard only (-k)
     bool invertPitch = false;                             // the gamepad pitch the other way
+
+    // where the Start button's options menu keeps its choices; null (development runs): Start pauses
+    Settings* settings = nullptr;
 
     // the display and the sound
     int hd = 1;

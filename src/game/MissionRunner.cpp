@@ -16,8 +16,10 @@
 #include "game/World.hpp"
 #include "platform/Input.hpp"
 #include "render/EgaScreen.hpp"
+#include "ui/ControlSetup.hpp"
 #include "ui/Intro.hpp"
 #include "ui/MissionEnd.hpp"
+#include "ui/Settings.hpp"
 #include "ui/SpaceSequence.hpp"
 #include "ui/TowerScreen.hpp"
 #include "game/TheaterFiles.hpp"
@@ -74,8 +76,8 @@ std::vector<ScriptEvent> parseScript(const char* s) {
 //     left stick    up = run forward, down = step back, left / right = strafe
 //     right stick   look around (turn and tilt the view)
 //     A             pull the ripcord while falling
-//   Both          Back = eject / step out    Start = pause
-void updatePad(const Input& in, DosKeyboard& kbd, game::Main3& game, GameState& gs, bool enabled, bool invertPitch) {
+//   Both          Back = eject / step out    Start = the options menu (pause without one)
+void updatePad(const Input& in, DosKeyboard& kbd, game::Main3& game, GameState& gs, bool enabled, bool invertPitch, bool startIsPause) {
     static bool held[32] = {};
     auto key = [&](int slot, bool down, uint8_t code) {
         if (down != held[slot]) {
@@ -105,7 +107,7 @@ void updatePad(const Input& in, DosKeyboard& kbd, game::Main3& game, GameState& 
     key(8, btn(SDL_CONTROLLER_BUTTON_DPAD_LEFT), 0x13);                                                      // r: rear window
     key(9, btn(SDL_CONTROLLER_BUTTON_DPAD_RIGHT), 0x22);                                                     // g: ground dots
     key(10, btn(SDL_CONTROLLER_BUTTON_BACK), 0x12);                                                          // e: eject / step out
-    key(12, btn(SDL_CONTROLLER_BUTTON_START), 0x19);                                                         // p: pause
+    key(12, startIsPause && btn(SDL_CONTROLLER_BUTTON_START), 0x19);                                         // p: pause (or the options menu)
     key(13, onFoot && ly < -0.5f, 0x4C);                                                                     // run forward
     key(14, onFoot && ly > 0.5f, 0x52);                                                                      // step back
     key(15, !onFoot && btn(SDL_CONTROLLER_BUTTON_LEFTSHOULDER), 0x2C);                                       // z: rudder left
@@ -176,9 +178,10 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
     game::Instruments instruments(gs, eng, screen, clock);
     game::Main3 game(gs, eng, world, keyboard, clock, instruments);
     if (opl.isOpen()) game.setSound(&sound);
+    bool modernOn = rq.modernPanel, padOn = rq.useGamepad, invertOn = rq.invertPitch;
     if (rq.modernPanel)   // the smooth panel over the picture, except under the pause and help pictures
         display.setOverlay([&](const SDL_Rect& r) {
-            if (!game.paused()) modernPanel.draw(window.sdlRenderer(), r, screen, eng.palette());
+            if (modernOn && !game.paused()) modernPanel.draw(window.sdlRenderer(), r, screen, eng.palette());
         });
     game.onViewChange([&](bool cockpit) {
         if (cockpit && havePanel) screen.drawPanel(panel, 0);   // readimg: the instrument panel
@@ -226,7 +229,7 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
     });
     game.startUp(!rq.training);
 
-    const int minFrameTicks = static_cast<int>(TickClock::FAST_HZ / rq.fps);
+    int minFrameTicks = static_cast<int>(TickClock::FAST_HZ / rq.fps);
     const std::vector<ScriptEvent> script = parseScript(rq.keyScript);
     size_t scriptPos = 0;
 
@@ -237,7 +240,7 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
     Uint64 prev = SDL_GetPerformanceCounter();
     const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
     int frame = 0;
-    bool gameOver = false, running = true;
+    bool gameOver = false, running = true, startHeld = false;
 
     while (running) {
         if (!window.pollEvents()) {
@@ -266,7 +269,24 @@ MissionOutcome runMission(Window& window, const MissionRequest& rq) {
             scriptPos++;
         }
         input.update();
-        updatePad(input, keyboard, game, gs, rq.useGamepad, rq.invertPitch);
+        updatePad(input, keyboard, game, gs, padOn, invertOn, rq.settings == nullptr);
+        if (rq.settings && padOn && input.hasGamepad() && input.padButton(SDL_CONTROLLER_BUTTON_START) && !startHeld) {
+            startHeld = true;
+            game.silence();   // the engine and the guns stop while the menu is up
+            runControlSetup(window, *rq.settings);
+            const Settings& st = *rq.settings;
+            if (st.hd != screen.scale()) {   // the panel is redrawn into the new pages
+                screen.setScale(st.hd);
+                if (havePanel && gs.w(d::m3::ptrgwinf) == static_cast<i16>(d::m3::gwinf)) screen.drawPanel(panel, 0);
+            }
+            minFrameTicks = static_cast<int>(TickClock::FAST_HZ / st.fps);
+            modernOn = st.modernPanel;
+            padOn = st.joystick;
+            invertOn = st.invertPitch;
+            prev = SDL_GetPerformanceCounter();   // the time in the menu is not flight time
+            continue;
+        }
+        if (!input.padButton(SDL_CONTROLLER_BUTTON_START)) startHeld = false;
         if (input.isKeyJustDown(SDL_SCANCODE_F11)) {
             // HD toggle: 1x <-> 2x, panel redrawn into the new pages
             screen.setScale(screen.scale() == 1 ? 2 : 1);

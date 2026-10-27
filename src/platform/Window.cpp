@@ -49,6 +49,19 @@ bool Window::pollEvents() {
         if (e.type == SDL_KEYDOWN && !e.key.repeat && m_lastKey == SDL_SCANCODE_UNKNOWN)
             m_lastKey = e.key.keysym.scancode;
         if (e.type == SDL_KEYDOWN) m_keyPresses.push_back({e.key.keysym.sym, (e.key.keysym.mod & KMOD_SHIFT) != 0});
+        if (e.type == SDL_CONTROLLERBUTTONDOWN) {   // a gamepad can drive the menus: D-pad, A = enter, B = escape
+            SDL_Keycode k = SDLK_UNKNOWN;
+            switch (e.cbutton.button) {
+            case SDL_CONTROLLER_BUTTON_DPAD_UP: k = SDLK_UP; break;
+            case SDL_CONTROLLER_BUTTON_DPAD_DOWN: k = SDLK_DOWN; break;
+            case SDL_CONTROLLER_BUTTON_DPAD_LEFT: k = SDLK_LEFT; break;
+            case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: k = SDLK_RIGHT; break;
+            case SDL_CONTROLLER_BUTTON_A: k = SDLK_RETURN; break;
+            case SDL_CONTROLLER_BUTTON_B: k = SDLK_ESCAPE; break;
+            default: break;
+            }
+            if (k != SDLK_UNKNOWN) m_keyPresses.push_back({k, false});
+        }
         if (e.type == SDL_TEXTINPUT) m_typed += e.text.text;
         if ((e.type == SDL_KEYDOWN || e.type == SDL_KEYUP) && !e.key.repeat)
             m_keyEvents.push_back({e.key.keysym.scancode, e.type == SDL_KEYDOWN, e.key.timestamp});

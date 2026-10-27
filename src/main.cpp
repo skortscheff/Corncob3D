@@ -228,6 +228,7 @@ int main(int argc, char* argv[]) {
     FrontEnd menus(screen, settings, haveMusic ? &music : nullptr, [&](const MissionRequest& request) {
         MissionRequest r = request;
         r.noSound = base.noSound;
+        r.settings = &settings;
         if (fakeStatus >= 0) {   // a canned result instead of a flight
             MissionOutcome out;
             out.over = true;
