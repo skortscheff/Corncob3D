@@ -150,15 +150,17 @@ highlighted letter. `Training missions` is the quick way into a plane; `Duty ros
 The flight keys are those of `CORNCOB.DOC` (keypad 8/2 nose down/up, 4/6 roll, 7/9 or z/x rudder, keypad +/- throttle,
 space guns, c missiles, b bomb, e eject, F1 boss screen, F2 the control tower's missions, F4 help ...). They can be changed
 in `keyboard/Joystick setup` > `reDefine keys`. An Xbox-style gamepad works as well: left stick flies, right stick looks, `A` guns,
-`X` missiles, `B` bomb, `Y` flaps, `Back` eject, `Start` options menu (on foot: left stick walks, right stick looks).
+`X` missiles, `B` bomb, `Y` flaps, `Back` eject, `Start` options menu (on foot: left stick walks, right stick looks). The pad also
+works in every menu and screen: D-pad or left stick moves, `A` or `Start` is Enter, `B` or `Back` is Escape.
 
 The simulation runs at 60 frames per second by default (a reworked time base keeps flight, weapons and timers at the original's pace);
-`keyboard/Joystick setup` switches to the original's 20 and sets the high-resolution factor.
+`keyboard/Joystick setup` switches to the original's 20 and sets the high-resolution factor and smoothing. The same menu opens
+during a flight with `Start` on a gamepad; it ends with `Return to the game` and `Return to the main menu`.
 
 ### Command line
 
 ```
---skip-intro  --no-music  --nosound  --hd <n>  --fps <n>  --classic-panel  --save-dir <dir>
+--skip-intro  --no-music  --nosound  --hd <n>  --smooth | --no-smooth  --fps <n>  --classic-panel  --save-dir <dir>
 ```
 
 and for looking at one thing (the full list is at the top of `src/main.cpp`): `--theater <name>` / `--training` fly a mission
@@ -174,8 +176,13 @@ back to the original behavior.
   weapons and timers rescaled so the plane still handles like the original. 20 fps is available in
   `keyboard/Joystick setup` or with `--fps 20`.
 - **Xbox-style gamepad.** Left stick flies, right stick looks around, `A` guns, `X` missiles, `B` bomb, `Y` flaps, `Back`
-  eject, `Start` opens the options menu (D-pad and `A`/`B` work in it; `P` on the keyboard still pauses). On foot after ejecting, the left stick walks and strafes and the right stick looks.
+  eject, `Start` opens the options menu (`P` on the keyboard still pauses). On foot after ejecting, the left stick walks and strafes and the right stick looks.
+  The pad also drives every menu and screen: D-pad or left stick moves (and repeats), `A`/`Start` is Enter, `B`/`Back` is Escape,
+  `X` is Space, `LB`/`RB` are page up/down. Pilot names are typed with up/down (letter), right (next) and left (delete).
 - **HD scaling.** Missions can be drawn at 1x to 4x the original 640x350 (`--hd <n>` or the setup menu), keeping the EGA look.
+- **Smoothing (anti-aliasing).** From 2x up, the larger picture is filtered down to the window instead of being stretched pixel by
+  pixel, which softens the jagged edges (`--no-smooth` or the setup menu turns it off). 3x or 4x gives the best result; at 1x the
+  pixels stay sharp.
 - **Modern instrument panel.** Anti-aliased dials, lamps and bars over the EGA picture. `--classic-panel` restores the
   original panel.
 - **Rebindable keys.** `keyboard/Joystick setup` > `reDefine keys`; bindings are saved in your settings.
