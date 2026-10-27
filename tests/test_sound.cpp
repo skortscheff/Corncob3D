@@ -68,6 +68,26 @@ int main(int, char**) {
     snd.snaresnd();
     CHECK(rms(opl, 3000) > 50.0);
 
+    // the same sounds again, shot after shot: the game keys a voice off and on at once to restart it, which the card
+    // heard because every write took a few samples; the chip has to see that key off or the repeats are silent
+    snd.adlreginit();
+    rms(opl, 49716 * 20);
+    snd.guninit();
+    for (int shot = 0; shot < 4; shot++) {
+        snd.voiceoff(1, 0x200);
+        snd.voiceon(1, 0x200);
+        CHECK(rms(opl, 3000) > 50.0);   // the attack of this shot, not the tail of the last
+        rms(opl, 20000);                // it dies away on its own before the next one
+    }
+    snd.adlreginit();
+    rms(opl, 49716 * 20);
+    snd.snareinit();
+    for (int shot = 0; shot < 4; shot++) {
+        snd.snaresnd();
+        CHECK(rms(opl, 3000) > 50.0);
+        rms(opl, 20000);
+    }
+
     // sound off: writes are ignored, so nothing plays
     snd.adlreginit();
     rms(opl, 49716 * 20);               // the release of rate 3 is slow

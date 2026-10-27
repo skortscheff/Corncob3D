@@ -8,6 +8,7 @@
 #pragma once
 #include <SDL.h>
 #include <cstdint>
+#include <deque>
 #include <memory>
 
 namespace corncob {
@@ -39,6 +40,8 @@ private:
     std::unique_ptr<Chip> m_chip;
     SDL_AudioDeviceID m_dev = 0;
     float m_volume = 1.0f;
+    std::deque<int16_t> m_pending;   // samples the chip made while a key write was being 'waited out' (see write)
+    int16_t next();
 };
 
 } // namespace corncob

@@ -33,19 +33,37 @@ bool Opl::open() {
     return true;
 }
 
+// One sample from the chip
+int16_t Opl::next() {
+    ymfm::ym3812::output_data o;
+    m_chip->chip.generate(&o, 1);
+    const int v = static_cast<int>(o.data[0] * m_volume);
+    return static_cast<int16_t>(std::clamp(v, -32768, 32767));
+}
+
 void Opl::write(uint8_t reg, uint8_t value) {
     if (m_dev) SDL_LockAudioDevice(m_dev);
     m_chip->chip.write(0, reg);
     m_chip->chip.write(1, value);
+    // The card needed about 35 microseconds (a sample or two) after every write, and the game relies on it: a voice is keyed
+    // off and on again straight away to restart a sound, which only works if the chip sees the key off for a moment. Here the
+    // writes would land between two samples, the chip would never see it, and every shot after the first would be silent.
+    // So after the key-on registers of the voices and the drums the chip runs two samples, played ahead of the rest.
+    if ((reg >= 0xB0 && reg <= 0xB8) || reg == 0xBD) {
+        m_pending.push_back(next());
+        m_pending.push_back(next());
+    }
     if (m_dev) SDL_UnlockAudioDevice(m_dev);
 }
 
 void Opl::render(int16_t* out, int frames) {
     for (int i = 0; i < frames; i++) {
-        ymfm::ym3812::output_data o;
-        m_chip->chip.generate(&o, 1);
-        const int v = static_cast<int>(o.data[0] * m_volume);
-        out[i] = static_cast<int16_t>(std::clamp(v, -32768, 32767));
+        if (!m_pending.empty()) {
+            out[i] = m_pending.front();
+            m_pending.pop_front();
+        } else {
+            out[i] = next();
+        }
     }
 }
 
