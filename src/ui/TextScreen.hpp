@@ -60,6 +60,7 @@ public:
     // A key if there is one, without waiting
     bool pollKey(UiKey& k);
     // Makes the window report typed characters (for entering names)
+    bool hasGamepad() const { return m_win.hasGamepad(); }
     void startText() { SDL_StartTextInput(); }
     void stopText() { SDL_StopTextInput(); }
 

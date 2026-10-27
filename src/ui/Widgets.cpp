@@ -4,6 +4,7 @@
 #include <SDL.h>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 
 namespace corncob::ui {
 
@@ -85,6 +86,9 @@ bool confirmBox(TextScreen& t, const std::string& title, const std::vector<std::
     return k.ch != 0 && std::tolower(k.ch) == yes;
 }
 
+// What a gamepad can type: up / down changes the last character through these, right adds one, left takes one away
+static const char kPadChars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 -.";
+
 bool inputLine(TextScreen& t, const std::string& title, const std::vector<std::string>& lines, std::string& value, size_t maxLen,
                const std::string& prompt) {
     std::string text = value;
@@ -93,7 +97,8 @@ bool inputLine(TextScreen& t, const std::string& title, const std::vector<std::s
         std::vector<std::string> all = lines;
         all.push_back("");
         all.push_back(prompt + text + "_");
-        centeredBox(t, title, all, static_cast<int>(prompt.size() + maxLen) + 6);
+        if (t.hasGamepad()) all.push_back("Pad: up/down letter, right next, left delete, A done");
+        centeredBox(t, title, all, std::max(static_cast<int>(prompt.size() + maxLen) + 6, t.hasGamepad() ? 56 : 0));
         const UiKey k = t.waitKey();
         if (k.quit || k.code == SDLK_ESCAPE) {
             t.stopText();
@@ -104,8 +109,19 @@ bool inputLine(TextScreen& t, const std::string& title, const std::vector<std::s
             value = text;
             return true;
         }
-        if (k.code == SDLK_BACKSPACE) {
+        if (k.code == SDLK_BACKSPACE || k.code == SDLK_LEFT) {
             if (!text.empty()) text.pop_back();
+        } else if (k.code == SDLK_UP || k.code == SDLK_DOWN) {   // the gamepad's way to type
+            const int n = static_cast<int>(sizeof kPadChars) - 1;
+            if (text.empty()) {
+                if (maxLen > 0) text += kPadChars[0];
+            } else {
+                const char* at = std::strchr(kPadChars, text.back());
+                const int i = at ? static_cast<int>(at - kPadChars) : -1;
+                text.back() = kPadChars[((i < 0 ? 0 : i) + (k.code == SDLK_UP ? 1 : n - 1)) % n];
+            }
+        } else if (k.code == SDLK_RIGHT) {
+            if (text.size() < maxLen) text += text.empty() ? 'A' : text.back();
         } else if (k.ch >= 32 && k.ch < 127 && text.size() < maxLen) {
             text += static_cast<char>(k.ch);
         }
@@ -135,6 +151,11 @@ bool inputNumber(TextScreen& t, const std::string& title, const std::vector<std:
             text.clear();   // not in range: ask again
         } else if (k.code == SDLK_BACKSPACE) {
             if (!text.empty()) text.pop_back();
+        } else if (k.code == SDLK_UP || k.code == SDLK_DOWN || k.code == SDLK_LEFT || k.code == SDLK_RIGHT) {   // gamepad
+            const int step = (k.code == SDLK_UP || k.code == SDLK_RIGHT) ? 1 : -1;
+            const int big = (k.code == SDLK_LEFT || k.code == SDLK_RIGHT) ? 10 : 1;
+            const int cur = text.empty() ? lo : std::atoi(text.c_str());
+            text = std::to_string(std::max(lo, std::min(hi, cur + step * big)));
         } else if (k.ch >= '0' && k.ch <= '9' && text.size() < 6) {
             text += static_cast<char>(k.ch);
         }

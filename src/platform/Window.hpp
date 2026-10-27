@@ -22,6 +22,12 @@ public:
     // Pump events; returns false once the user asked to quit (window close)
     bool pollEvents();
 
+    // A gamepad drives every screen that waits for keys: it is opened here (and again when one is plugged in) and its
+    // buttons arrive as key presses in keyPresses() and lastKey(): D-pad or left stick = the arrow keys (with auto-repeat),
+    // A and Start = Enter, B and Back = Escape, X = space, LB / RB = page up / down. The mission reads the pad itself (Input),
+    // so these presses are not key events there.
+    bool hasGamepad() const { return !m_pads.empty(); }
+
     // First key pressed during the last pollEvents (SDL_SCANCODE_UNKNOWN if none)
     SDL_Scancode lastKey() const { return m_lastKey; }
 
@@ -56,6 +62,12 @@ private:
     SDL_Window* m_window = nullptr;
     SDL_Renderer* m_renderer = nullptr;
     bool m_quit = false;
+    std::vector<SDL_GameController*> m_pads;   // every game controller that is plugged in
+    int m_padDir = 0;          // the arrow held on the pad: 0 none, else a SDL_Keycode
+    Uint32 m_padRepeatAt = 0;
+    void openPad();
+    void padKey(SDL_Keycode sym, SDL_Scancode sc);
+    void padDirections();
     SDL_Scancode m_lastKey = SDL_SCANCODE_UNKNOWN;
     std::vector<KeyEvent> m_keyEvents;
     std::vector<KeyPress> m_keyPresses;
